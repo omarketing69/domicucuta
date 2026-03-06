@@ -2,7 +2,53 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
-import { Package, FolderOpen, ShoppingBag, ExternalLink, TrendingUp } from 'lucide-react';
+import { Package, FolderOpen, ShoppingBag, ExternalLink, TrendingUp, Sparkles, Zap, Crown, ArrowUpRight } from 'lucide-react';
+import { Database } from '@/integrations/supabase/types';
+
+type Business = Database['public']['Tables']['businesses']['Row'];
+
+const PLAN_META = {
+  free: { label: 'Prueba gratuita (30 días)', icon: Sparkles, bg: 'bg-muted', border: 'border-border', text: 'text-muted-foreground', cta: 'Elegir un plan', ctaStyle: 'text-primary' },
+  starter: { label: 'Plan Starter', icon: Zap, bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary', cta: 'Mejorar a Pro', ctaStyle: 'text-amber-600' },
+  pro: { label: 'Plan Pro', icon: Crown, bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', cta: null, ctaStyle: '' },
+};
+
+function PlanBanner({ business }: { business: Business }) {
+  const plan = ((business as any).plan ?? 'free') as keyof typeof PLAN_META;
+  const meta = PLAN_META[plan] ?? PLAN_META.free;
+  const Icon = meta.icon;
+
+  let daysLeft: number | null = null;
+  const expiresAt = (business as any).plan_expires_at;
+  if (plan === 'free' && expiresAt) {
+    daysLeft = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000));
+  }
+
+  return (
+    <div className={`card-elevated p-5 border ${meta.border} ${meta.bg}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <Icon className={`w-4 h-4 ${meta.text}`} />
+          <div>
+            <p className={`text-sm font-medium ${meta.text}`}>{meta.label}</p>
+            {daysLeft !== null && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {daysLeft > 0 ? `Quedan ${daysLeft} días` : 'Prueba expirada'}
+              </p>
+            )}
+          </div>
+        </div>
+        {meta.cta && (
+          <Link to="/pricing" className={`flex items-center gap-1 text-xs font-medium hover:underline ${meta.ctaStyle}`}>
+            {meta.cta}
+            <ArrowUpRight className="w-3 h-3" />
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 export default function Dashboard() {
   const { business } = useBusiness();
