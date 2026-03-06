@@ -65,6 +65,7 @@ export function AdminSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border space-y-2">
+        <PlanBadge collapsed={collapsed} />
         {business && !collapsed && (
           <Link
             to={`/b/${business.slug}`}
