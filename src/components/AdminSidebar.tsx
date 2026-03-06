@@ -12,6 +12,7 @@ import {
   ChefHat, ExternalLink, LogOut
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { PlanBadge } from './PlanBadge';
 
 const navItems = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
