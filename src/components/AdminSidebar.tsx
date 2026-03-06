@@ -12,6 +12,7 @@ import {
   ChefHat, ExternalLink, LogOut
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { PlanBadge } from './PlanBadge';
 
 const navItems = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
@@ -64,6 +65,7 @@ export function AdminSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border space-y-2">
+        <PlanBadge collapsed={collapsed} />
         {business && !collapsed && (
           <Link
             to={`/b/${business.slug}`}

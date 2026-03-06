@@ -25,6 +25,9 @@ export type Database = {
           logo_url: string | null
           name: string
           owner_id: string
+          plan: string
+          plan_expires_at: string | null
+          plan_started_at: string | null
           slug: string
           updated_at: string
           whatsapp_number: string
@@ -39,6 +42,9 @@ export type Database = {
           logo_url?: string | null
           name: string
           owner_id: string
+          plan?: string
+          plan_expires_at?: string | null
+          plan_started_at?: string | null
           slug: string
           updated_at?: string
           whatsapp_number: string
@@ -53,6 +59,9 @@ export type Database = {
           logo_url?: string | null
           name?: string
           owner_id?: string
+          plan?: string
+          plan_expires_at?: string | null
+          plan_started_at?: string | null
           slug?: string
           updated_at?: string
           whatsapp_number?: string
