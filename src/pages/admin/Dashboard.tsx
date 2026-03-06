@@ -83,6 +83,11 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Plan status */}
+      {business && (
+        <PlanBanner business={business} />
+      )}
     </div>
   );
 }
