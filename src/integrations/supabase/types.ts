@@ -28,6 +28,7 @@ export type Database = {
           plan: string
           plan_expires_at: string | null
           plan_started_at: string | null
+          primary_color: string | null
           slug: string
           updated_at: string
           whatsapp_number: string
@@ -45,6 +46,7 @@ export type Database = {
           plan?: string
           plan_expires_at?: string | null
           plan_started_at?: string | null
+          primary_color?: string | null
           slug: string
           updated_at?: string
           whatsapp_number: string
@@ -62,6 +64,7 @@ export type Database = {
           plan?: string
           plan_expires_at?: string | null
           plan_started_at?: string | null
+          primary_color?: string | null
           slug?: string
           updated_at?: string
           whatsapp_number?: string
