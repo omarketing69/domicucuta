@@ -10,7 +10,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Minus, Plus, ShoppingCart, MessageCircle, Loader2, ChefHat, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type Business = Database['public']['Tables']['businesses']['Row'];
+type Business = Database['public']['Tables']['businesses']['Row'] & {
+  primary_color?: string | null;
+  logo_url?: string | null;
+};
 type Category = Database['public']['Tables']['categories']['Row'];
 type Product = Database['public']['Tables']['products']['Row'];
 
@@ -30,11 +33,13 @@ export default function PublicMenu() {
 
   const { items, addItem, removeItem, updateQuantity, clearCart, total, count } = useCart(business?.id);
 
+  const brandColor = business?.primary_color || '#f97316';
+
   useEffect(() => {
     const load = async () => {
       const { data: biz } = await supabase.from('businesses').select('*').eq('slug', slug!).eq('is_active', true).maybeSingle();
       if (!biz) { setNotFound(true); setLoading(false); return; }
-      setBusiness(biz);
+      setBusiness(biz as Business);
 
       const [cats, prods] = await Promise.all([
         supabase.from('categories').select('*').eq('business_id', biz.id).eq('is_active', true).order('position'),
@@ -108,19 +113,39 @@ export default function PublicMenu() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-card border-b border-border sticky top-0 z-20">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="font-semibold text-lg tracking-tight">{business?.name}</h1>
-            {business?.address && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                <MapPin className="w-3 h-3" />{business.address}
-              </p>
+        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {business?.logo_url ? (
+              <img
+                src={business.logo_url}
+                alt={business.name}
+                className="w-10 h-10 rounded-xl object-contain flex-shrink-0 bg-muted/30 p-0.5"
+              />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-bold text-lg"
+                style={{ backgroundColor: brandColor }}
+              >
+                {business?.name?.[0]?.toUpperCase()}
+              </div>
             )}
+            <div className="min-w-0">
+              <h1 className="font-semibold text-lg tracking-tight truncate">{business?.name}</h1>
+              {business?.address && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{business.address}</span>
+                </p>
+              )}
+            </div>
           </div>
 
           <Sheet open={cartOpen} onOpenChange={setCartOpen}>
             <SheetTrigger asChild>
-              <Button size="sm" className="relative gap-2">
+              <Button
+                size="sm"
+                className="relative gap-2 flex-shrink-0 text-white"
+                style={{ backgroundColor: brandColor, borderColor: brandColor }}
+              >
                 <ShoppingCart className="w-4 h-4" />
                 <span className="hidden sm:inline">Mi pedido</span>
                 {count > 0 && (
@@ -137,12 +162,14 @@ export default function PublicMenu() {
 
               {ordered ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                    <MessageCircle className="w-8 h-8 text-primary" />
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: brandColor + '20' }}>
+                    <MessageCircle className="w-8 h-8" style={{ color: brandColor }} />
                   </div>
                   <h3 className="font-semibold text-lg mb-1">¡Pedido enviado!</h3>
                   <p className="text-muted-foreground text-sm">Se abrió WhatsApp para confirmar con el negocio.</p>
-                  <Button className="mt-6" onClick={() => setOrdered(false)}>Hacer otro pedido</Button>
+                  <Button className="mt-6 text-white" style={{ backgroundColor: brandColor }} onClick={() => setOrdered(false)}>
+                    Hacer otro pedido
+                  </Button>
                 </div>
               ) : items.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
@@ -157,14 +184,20 @@ export default function PublicMenu() {
                       <div key={item.product.id} className="flex items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium">{item.product.name}</p>
-                          <p className="text-sm text-primary font-semibold">{currencySymbol}{(item.product.price * item.quantity).toFixed(2)}</p>
+                          <p className="text-sm font-semibold" style={{ color: brandColor }}>
+                            {currencySymbol}{(item.product.price * item.quantity).toFixed(2)}
+                          </p>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/80">
                             <Minus className="w-3 h-3" />
                           </button>
                           <span className="w-5 text-center text-sm font-medium">{item.quantity}</span>
-                          <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/80">
+                          <button
+                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-white"
+                            style={{ backgroundColor: brandColor }}
+                          >
                             <Plus className="w-3 h-3" />
                           </button>
                         </div>
@@ -180,9 +213,14 @@ export default function PublicMenu() {
                   <div className="border-t border-border pt-4 space-y-3">
                     <div className="flex justify-between font-semibold">
                       <span>Total</span>
-                      <span className="text-primary">{currencySymbol}{total.toFixed(2)}</span>
+                      <span style={{ color: brandColor }}>{currencySymbol}{total.toFixed(2)}</span>
                     </div>
-                    <Button className="w-full gap-2 bg-[hsl(142,70%,40%)] hover:bg-[hsl(142,70%,35%)] text-white" onClick={sendOrder} disabled={ordering}>
+                    <Button
+                      className="w-full gap-2 text-white"
+                      style={{ backgroundColor: '#16a34a' }}
+                      onClick={sendOrder}
+                      disabled={ordering}
+                    >
                       {ordering ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
                       Enviar por WhatsApp
                     </Button>
@@ -198,10 +236,12 @@ export default function PublicMenu() {
           <div className="max-w-2xl mx-auto px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveCategory(null)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0',
-                !activeCategory ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
-              )}
+              className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 text-white"
+              style={{
+                backgroundColor: !activeCategory ? brandColor : 'transparent',
+                color: !activeCategory ? 'white' : undefined,
+                border: `1px solid ${!activeCategory ? brandColor : 'hsl(var(--border))'}`,
+              }}
             >
               Todo
             </button>
@@ -209,10 +249,12 @@ export default function PublicMenu() {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
-                className={cn(
-                  'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0',
-                  activeCategory === cat.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                )}
+                className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0"
+                style={{
+                  backgroundColor: activeCategory === cat.id ? brandColor : 'transparent',
+                  color: activeCategory === cat.id ? 'white' : undefined,
+                  border: `1px solid ${activeCategory === cat.id ? brandColor : 'hsl(var(--border))'}`,
+                }}
               >
                 {cat.name}
               </button>
@@ -230,12 +272,12 @@ export default function PublicMenu() {
             return (
               <section key={cat.id}>
                 <h2 className="text-base font-semibold mb-3">{cat.name}</h2>
-                <ProductGrid products={catProducts} currencySymbol={currencySymbol} items={items} addItem={addItem} removeItem={removeItem} updateQuantity={updateQuantity} />
+                <ProductGrid products={catProducts} currencySymbol={currencySymbol} brandColor={brandColor} items={items} addItem={addItem} removeItem={removeItem} updateQuantity={updateQuantity} />
               </section>
             );
           })
         ) : (
-          <ProductGrid products={filteredProducts} currencySymbol={currencySymbol} items={items} addItem={addItem} removeItem={removeItem} updateQuantity={updateQuantity} />
+          <ProductGrid products={filteredProducts} currencySymbol={currencySymbol} brandColor={brandColor} items={items} addItem={addItem} removeItem={removeItem} updateQuantity={updateQuantity} />
         )}
 
         {/* Uncategorized */}
@@ -245,7 +287,7 @@ export default function PublicMenu() {
           return (
             <section>
               <h2 className="text-base font-semibold mb-3">Otros</h2>
-              <ProductGrid products={uncategorized} currencySymbol={currencySymbol} items={items} addItem={addItem} removeItem={removeItem} updateQuantity={updateQuantity} />
+              <ProductGrid products={uncategorized} currencySymbol={currencySymbol} brandColor={brandColor} items={items} addItem={addItem} removeItem={removeItem} updateQuantity={updateQuantity} />
             </section>
           );
         })()}
@@ -254,9 +296,10 @@ export default function PublicMenu() {
   );
 }
 
-function ProductGrid({ products, currencySymbol, items, addItem, removeItem, updateQuantity }: {
+function ProductGrid({ products, currencySymbol, brandColor, items, addItem, removeItem, updateQuantity }: {
   products: Product[];
   currencySymbol: string;
+  brandColor: string;
   items: ReturnType<typeof useCart>['items'];
   addItem: (p: Product) => void;
   removeItem: (id: string) => void;
@@ -275,11 +318,12 @@ function ProductGrid({ products, currencySymbol, items, addItem, removeItem, upd
               <p className="font-medium text-sm leading-tight">{product.name}</p>
               {product.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{product.description}</p>}
               <div className="flex items-center justify-between mt-2">
-                <span className="font-semibold text-sm text-primary">{currencySymbol}{product.price.toFixed(2)}</span>
+                <span className="font-semibold text-sm" style={{ color: brandColor }}>{currencySymbol}{product.price.toFixed(2)}</span>
                 {!cartItem ? (
                   <button
                     onClick={() => addItem(product)}
-                    className="w-7 h-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-90 transition-opacity text-white"
+                    style={{ backgroundColor: brandColor }}
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -289,7 +333,11 @@ function ProductGrid({ products, currencySymbol, items, addItem, removeItem, upd
                       <Minus className="w-3 h-3" />
                     </button>
                     <span className="w-5 text-center text-xs font-semibold">{cartItem.quantity}</span>
-                    <button onClick={() => updateQuantity(product.id, cartItem.quantity + 1)} className="w-6 h-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center">
+                    <button
+                      onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-white"
+                      style={{ backgroundColor: brandColor }}
+                    >
                       <Plus className="w-3 h-3" />
                     </button>
                   </div>
