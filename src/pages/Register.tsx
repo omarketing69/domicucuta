@@ -31,10 +31,8 @@ export default function Register() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 justify-center mb-8">
-          <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-            <ChefHat className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-semibold tracking-tight">MenuApp</span>
+          <img src={logo} alt="DomiCircusPop" className="w-10 h-10" />
+          <span className="text-xl font-semibold tracking-tight">DomiCircusPop</span>
         </div>
 
         <div className="card-elevated p-6">
