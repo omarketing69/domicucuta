@@ -51,6 +51,14 @@ const App = () => (
               </Route>
             </Route>
 
+            {/* Super Admin routes */}
+            <Route element={<ProtectedRoute requireAdmin />}>
+              <Route path="/superadmin" element={<SuperAdminLayout />}>
+                <Route index element={<SuperAdminDashboard />} />
+                <Route path="businesses" element={<SuperAdminBusinesses />} />
+              </Route>
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
