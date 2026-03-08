@@ -24,7 +24,7 @@ const navItems = [
 ];
 
 export function AdminSidebar() {
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
   const { business } = useBusiness();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
@@ -34,10 +34,8 @@ export function AdminSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-            <ChefHat className="w-4 h-4 text-primary-foreground" />
-          </div>
-          {!collapsed && <span className="font-semibold text-sm tracking-tight">MenuApp</span>}
+          <img src={logo} alt="DomiCircusPop" className="w-8 h-8 flex-shrink-0" />
+          {!collapsed && <span className="font-semibold text-sm tracking-tight">DomiCircusPop</span>}
         </div>
       </SidebarHeader>
 
