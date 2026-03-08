@@ -204,6 +204,39 @@ export type Database = {
           },
         ]
       }
+      plan_pricing: {
+        Row: {
+          description: string | null
+          id: string
+          is_active: boolean
+          label: string
+          max_orders_monthly: number | null
+          max_products: number | null
+          price_monthly: number
+          updated_at: string
+        }
+        Insert: {
+          description?: string | null
+          id: string
+          is_active?: boolean
+          label: string
+          max_orders_monthly?: number | null
+          max_products?: number | null
+          price_monthly?: number
+          updated_at?: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          max_orders_monthly?: number | null
+          max_products?: number | null
+          price_monthly?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           business_id: string
