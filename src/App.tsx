@@ -17,6 +17,9 @@ import Onboarding from "@/pages/Onboarding";
 import PublicMenu from "@/pages/PublicMenu";
 import Pricing from "@/pages/Pricing";
 import NotFound from "@/pages/NotFound";
+import SuperAdminLayout from "@/pages/superadmin/SuperAdminLayout";
+import SuperAdminDashboard from "@/pages/superadmin/SuperAdminDashboard";
+import SuperAdminBusinesses from "@/pages/superadmin/SuperAdminBusinesses";
 
 const queryClient = new QueryClient();
 
