@@ -1,12 +1,13 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Building2, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, Building2, LogOut, Shield, DollarSign } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { title: 'Dashboard', url: '/superadmin', icon: LayoutDashboard, end: true },
   { title: 'Negocios', url: '/superadmin/businesses', icon: Building2, end: false },
+  { title: 'Precios de planes', url: '/superadmin/pricing', icon: DollarSign, end: false },
 ];
 
 export default function SuperAdminLayout() {

@@ -20,6 +20,7 @@ import NotFound from "@/pages/NotFound";
 import SuperAdminLayout from "@/pages/superadmin/SuperAdminLayout";
 import SuperAdminDashboard from "@/pages/superadmin/SuperAdminDashboard";
 import SuperAdminBusinesses from "@/pages/superadmin/SuperAdminBusinesses";
+import SuperAdminPricing from "@/pages/superadmin/SuperAdminPricing";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/superadmin" element={<SuperAdminLayout />}>
                 <Route index element={<SuperAdminDashboard />} />
                 <Route path="businesses" element={<SuperAdminBusinesses />} />
+                <Route path="pricing" element={<SuperAdminPricing />} />
               </Route>
             </Route>
 
