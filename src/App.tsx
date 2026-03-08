@@ -17,6 +17,9 @@ import Onboarding from "@/pages/Onboarding";
 import PublicMenu from "@/pages/PublicMenu";
 import Pricing from "@/pages/Pricing";
 import NotFound from "@/pages/NotFound";
+import SuperAdminLayout from "@/pages/superadmin/SuperAdminLayout";
+import SuperAdminDashboard from "@/pages/superadmin/SuperAdminDashboard";
+import SuperAdminBusinesses from "@/pages/superadmin/SuperAdminBusinesses";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +48,14 @@ const App = () => (
                 <Route path="categories" element={<Categories />} />
                 <Route path="orders" element={<Orders />} />
                 <Route path="settings" element={<Settings />} />
+              </Route>
+            </Route>
+
+            {/* Super Admin routes */}
+            <Route element={<ProtectedRoute requireAdmin />}>
+              <Route path="/superadmin" element={<SuperAdminLayout />}>
+                <Route index element={<SuperAdminDashboard />} />
+                <Route path="businesses" element={<SuperAdminBusinesses />} />
               </Route>
             </Route>
 

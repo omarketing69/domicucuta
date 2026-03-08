@@ -9,10 +9,11 @@ import {
 import { NavLink } from '@/components/NavLink';
 import {
   LayoutDashboard, Package, FolderOpen, ShoppingBag, Settings,
-  ChefHat, ExternalLink, LogOut
+  ExternalLink, LogOut, Shield
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { PlanBadge } from './PlanBadge';
+import logo from '@/assets/logo.png';
 
 const navItems = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
@@ -23,7 +24,7 @@ const navItems = [
 ];
 
 export function AdminSidebar() {
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
   const { business } = useBusiness();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
@@ -33,10 +34,8 @@ export function AdminSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-            <ChefHat className="w-4 h-4 text-primary-foreground" />
-          </div>
-          {!collapsed && <span className="font-semibold text-sm tracking-tight">MenuApp</span>}
+          <img src={logo} alt="DomiCircusPop" className="w-8 h-8 flex-shrink-0" />
+          {!collapsed && <span className="font-semibold text-sm tracking-tight">DomiCircusPop</span>}
         </div>
       </SidebarHeader>
 
@@ -74,6 +73,15 @@ export function AdminSidebar() {
           >
             <ExternalLink className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">Ver menú</span>
+          </Link>
+        )}
+        {isAdmin && (
+          <Link
+            to="/superadmin"
+            className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-destructive hover:bg-sidebar-accent transition-colors"
+          >
+            <Shield className="w-4 h-4 flex-shrink-0" />
+            {!collapsed && <span>Super Admin</span>}
           </Link>
         )}
         <button
