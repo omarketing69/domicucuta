@@ -75,6 +75,15 @@ export function AdminSidebar() {
             <span className="truncate">Ver menú</span>
           </Link>
         )}
+        {isAdmin && (
+          <Link
+            to="/superadmin"
+            className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-destructive hover:bg-sidebar-accent transition-colors"
+          >
+            <Shield className="w-4 h-4 flex-shrink-0" />
+            {!collapsed && <span>Super Admin</span>}
+          </Link>
+        )}
         <button
           onClick={signOut}
           className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full"
