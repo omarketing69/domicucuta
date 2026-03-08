@@ -16,11 +16,11 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 15% 10%;
 
-    /* Brand - indigo slate */
-    --primary: 234 80% 56%;
+    /* Brand - Circus Pop Yellow & Red */
+    --primary: 45 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-subtle: 234 100% 97%;
-    --primary-border: 234 80% 88%;
+    --primary-subtle: 45 100% 97%;
+    --primary-border: 45 100% 88%;
 
     /* Secondary */
     --secondary: 220 14% 96%;
