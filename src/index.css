@@ -32,9 +32,9 @@
     --accent: 220 14% 94%;
     --accent-foreground: 220 15% 10%;
 
-    /* Status */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+     /* Status */
+     --destructive: 0 100% 45%;
+     --destructive-foreground: 0 0% 100%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
