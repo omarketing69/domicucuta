@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from 'react'; // DomiCircusPop
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
