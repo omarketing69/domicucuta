@@ -16,11 +16,11 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 15% 10%;
 
-    /* Brand - indigo slate */
-    --primary: 234 80% 56%;
+    /* Brand - Circus Pop Yellow & Red */
+    --primary: 45 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-subtle: 234 100% 97%;
-    --primary-border: 234 80% 88%;
+    --primary-subtle: 45 100% 97%;
+    --primary-border: 45 100% 88%;
 
     /* Secondary */
     --secondary: 220 14% 96%;
@@ -32,9 +32,9 @@
     --accent: 220 14% 94%;
     --accent-foreground: 220 15% 10%;
 
-    /* Status */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+     /* Status */
+     --destructive: 0 100% 45%;
+     --destructive-foreground: 0 0% 100%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
@@ -50,12 +50,12 @@
     /* Sidebar */
     --sidebar-background: 220 15% 98%;
     --sidebar-foreground: 220 15% 25%;
-    --sidebar-primary: 234 80% 56%;
+    --sidebar-primary: 45 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 93%;
     --sidebar-accent-foreground: 220 15% 15%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 234 80% 56%;
+    --sidebar-ring: 45 100% 50%;
 
     /* Custom tokens */
     --shadow-sm: 0 1px 3px 0 hsl(220 15% 10% / 0.07), 0 1px 2px -1px hsl(220 15% 10% / 0.07);

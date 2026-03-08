@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ChefHat } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -27,10 +28,8 @@ export default function Login() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 justify-center mb-8">
-          <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-            <ChefHat className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-semibold tracking-tight">MenuApp</span>
+          <img src={logo} alt="DomiCircusPop" className="w-10 h-10" />
+          <span className="text-xl font-semibold tracking-tight">DomiCircusPop</span>
         </div>
 
         <div className="card-elevated p-6">
