@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/hooks/useBusiness';
 import {
@@ -9,9 +9,8 @@ import {
 import { NavLink } from '@/components/NavLink';
 import {
   LayoutDashboard, Package, FolderOpen, ShoppingBag, Settings,
-  ExternalLink, LogOut, Shield
+  ExternalLink, LogOut
 } from 'lucide-react';
-import { Button } from './ui/button';
 import { PlanBadge } from './PlanBadge';
 import logo from '@/assets/logo.png';
 
@@ -24,11 +23,10 @@ const navItems = [
 ];
 
 export function AdminSidebar() {
-  const { signOut, isAdmin } = useAuth();
+  const { signOut } = useAuth();
   const { business } = useBusiness();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
-  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon">
@@ -73,15 +71,6 @@ export function AdminSidebar() {
           >
             <ExternalLink className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">Ver menú</span>
-          </Link>
-        )}
-        {isAdmin && (
-          <Link
-            to="/superadmin"
-            className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-destructive hover:bg-sidebar-accent transition-colors"
-          >
-            <Shield className="w-4 h-4 flex-shrink-0" />
-            {!collapsed && <span>Super Admin</span>}
           </Link>
         )}
         <button
