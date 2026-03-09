@@ -173,7 +173,11 @@ export default function SuperAdminBusinesses() {
                             <MoreHorizontal className="w-4 h-4" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => setEditCreds({ biz })}>
+                            <KeyRound className="w-3.5 h-3.5 mr-2" /> Editar credenciales
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => toggleActive(biz.id, biz.is_active)}>
                             {biz.is_active ? 'Desactivar negocio' : 'Activar negocio'}
                           </DropdownMenuItem>
