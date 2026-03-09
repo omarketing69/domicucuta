@@ -9,9 +9,8 @@ import {
 import { NavLink } from '@/components/NavLink';
 import {
   LayoutDashboard, Package, FolderOpen, ShoppingBag, Settings,
-  ExternalLink, LogOut, Shield
+  ExternalLink, LogOut
 } from 'lucide-react';
-import { Button } from './ui/button';
 import { PlanBadge } from './PlanBadge';
 import logo from '@/assets/logo.png';
 
