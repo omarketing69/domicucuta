@@ -23,7 +23,7 @@ const navItems = [
 ];
 
 export function AdminSidebar() {
-  const { signOut, isAdmin } = useAuth();
+  const { signOut } = useAuth();
   const { business } = useBusiness();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
