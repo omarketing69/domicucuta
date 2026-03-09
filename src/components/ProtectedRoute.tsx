@@ -18,6 +18,11 @@ export default function ProtectedRoute({ requireAdmin = false }: ProtectedRouteP
   }
 
   if (!user) return <Navigate to="/login" replace />;
+
+  // Super admins must use their own interface, not the business panel
+  if (!requireAdmin && isAdmin) return <Navigate to="/superadmin" replace />;
+
+  // Non-admins cannot access super admin routes
   if (requireAdmin && !isAdmin) return <Navigate to="/admin/dashboard" replace />;
 
   return <Outlet />;
