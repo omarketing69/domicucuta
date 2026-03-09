@@ -220,6 +220,15 @@ export default function SuperAdminBusinesses() {
         onOpenChange={setCreateOpen}
         onCreated={load}
       />
+
+      {editCreds && (
+        <EditCredentialsDialog
+          open={!!editCreds}
+          onOpenChange={(v) => { if (!v) setEditCreds(null); }}
+          businessName={editCreds.biz.name}
+          ownerId={editCreds.biz.owner_id}
+        />
+      )}
     </div>
   );
 }
