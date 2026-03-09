@@ -31,6 +31,7 @@ export default function SuperAdminBusinesses() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editCreds, setEditCreds] = useState<{ biz: Business } | null>(null);
 
   const load = async () => {
     setLoading(true);
