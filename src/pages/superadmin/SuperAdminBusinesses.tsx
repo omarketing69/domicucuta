@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ExternalLink, Zap, Crown, Sparkles, Plus, RefreshCw, MoreHorizontal } from 'lucide-react';
+import { ExternalLink, Zap, Crown, Sparkles, Plus, RefreshCw, MoreHorizontal, KeyRound } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 import CreateBusinessDialog from './CreateBusinessDialog';
+import EditCredentialsDialog from './EditCredentialsDialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,6 +31,7 @@ export default function SuperAdminBusinesses() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editCreds, setEditCreds] = useState<{ biz: Business } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -171,7 +173,11 @@ export default function SuperAdminBusinesses() {
                             <MoreHorizontal className="w-4 h-4" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => setEditCreds({ biz })}>
+                            <KeyRound className="w-3.5 h-3.5 mr-2" /> Editar credenciales
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => toggleActive(biz.id, biz.is_active)}>
                             {biz.is_active ? 'Desactivar negocio' : 'Activar negocio'}
                           </DropdownMenuItem>
@@ -214,6 +220,15 @@ export default function SuperAdminBusinesses() {
         onOpenChange={setCreateOpen}
         onCreated={load}
       />
+
+      {editCreds && (
+        <EditCredentialsDialog
+          open={!!editCreds}
+          onOpenChange={(v) => { if (!v) setEditCreds(null); }}
+          businessName={editCreds.biz.name}
+          ownerId={editCreds.biz.owner_id}
+        />
+      )}
     </div>
   );
 }
