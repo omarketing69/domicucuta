@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ExternalLink, Zap, Crown, Sparkles, Plus, RefreshCw, MoreHorizontal, KeyRound } from 'lucide-react';
+import { ExternalLink, Zap, Crown, Sparkles, Plus, RefreshCw, MoreHorizontal, KeyRound, UserPlus } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 import CreateBusinessDialog from './CreateBusinessDialog';
 import EditCredentialsDialog from './EditCredentialsDialog';
+import AssignOwnerDialog from './AssignOwnerDialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ export default function SuperAdminBusinesses() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editCreds, setEditCreds] = useState<{ biz: Business } | null>(null);
+  const [assignOwner, setAssignOwner] = useState<{ biz: Business } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -174,6 +176,9 @@ export default function SuperAdminBusinesses() {
                           </button>
                         </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => setAssignOwner({ biz })}>
+                            <UserPlus className="w-3.5 h-3.5 mr-2" /> Asignar propietario
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setEditCreds({ biz })}>
                             <KeyRound className="w-3.5 h-3.5 mr-2" /> Editar credenciales
                           </DropdownMenuItem>
@@ -227,6 +232,16 @@ export default function SuperAdminBusinesses() {
           onOpenChange={(v) => { if (!v) setEditCreds(null); }}
           businessName={editCreds.biz.name}
           ownerId={editCreds.biz.owner_id}
+        />
+      )}
+
+      {assignOwner && (
+        <AssignOwnerDialog
+          open={!!assignOwner}
+          onOpenChange={(v) => { if (!v) setAssignOwner(null); }}
+          businessId={assignOwner.biz.id}
+          businessName={assignOwner.biz.name}
+          onSuccess={load}
         />
       )}
     </div>
