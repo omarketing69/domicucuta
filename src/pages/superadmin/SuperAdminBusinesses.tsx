@@ -33,6 +33,7 @@ export default function SuperAdminBusinesses() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editCreds, setEditCreds] = useState<{ biz: Business } | null>(null);
+  const [assignOwner, setAssignOwner] = useState<{ biz: Business } | null>(null);
 
   const load = async () => {
     setLoading(true);
