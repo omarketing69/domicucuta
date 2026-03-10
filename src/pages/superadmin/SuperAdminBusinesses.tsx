@@ -234,6 +234,16 @@ export default function SuperAdminBusinesses() {
           ownerId={editCreds.biz.owner_id}
         />
       )}
+
+      {assignOwner && (
+        <AssignOwnerDialog
+          open={!!assignOwner}
+          onOpenChange={(v) => { if (!v) setAssignOwner(null); }}
+          businessId={assignOwner.biz.id}
+          businessName={assignOwner.biz.name}
+          onSuccess={load}
+        />
+      )}
     </div>
   );
 }
