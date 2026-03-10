@@ -176,6 +176,9 @@ export default function SuperAdminBusinesses() {
                           </button>
                         </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => setAssignOwner({ biz })}>
+                            <UserPlus className="w-3.5 h-3.5 mr-2" /> Asignar propietario
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setEditCreds({ biz })}>
                             <KeyRound className="w-3.5 h-3.5 mr-2" /> Editar credenciales
                           </DropdownMenuItem>
