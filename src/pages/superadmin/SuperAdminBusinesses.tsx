@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ExternalLink, Zap, Crown, Sparkles, Plus, RefreshCw, MoreHorizontal, KeyRound } from 'lucide-react';
+import { ExternalLink, Zap, Crown, Sparkles, Plus, RefreshCw, MoreHorizontal, KeyRound, UserPlus } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 import CreateBusinessDialog from './CreateBusinessDialog';
 import EditCredentialsDialog from './EditCredentialsDialog';
+import AssignOwnerDialog from './AssignOwnerDialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
