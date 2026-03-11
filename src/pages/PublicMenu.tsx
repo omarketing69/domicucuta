@@ -132,9 +132,14 @@ export default function PublicMenu() {
             <div className="min-w-0">
               <h1 className="font-semibold text-lg tracking-tight truncate">{business?.name}</h1>
               {business?.address && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                  <MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{business.address}</span>
-                </p>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 hover:text-primary transition-colors"
+                >
+                  <MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate underline underline-offset-2">{business.address}</span>
+                </a>
               )}
             </div>
           </div>
