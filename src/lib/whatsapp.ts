@@ -16,7 +16,14 @@ export function buildWhatsAppMessage(
 
   message += `*Productos:*\n`;
   items.forEach(item => {
-    message += `• ${item.product.name} x${item.quantity} — ${currencySymbol}${(item.product.price * item.quantity).toFixed(2)}\n`;
+    const toppingTotal = item.toppings.reduce((s, t) => s + t.price, 0);
+    const linePrice = (item.product.price + toppingTotal) * item.quantity;
+    message += `• ${item.product.name} x${item.quantity} — ${currencySymbol}${linePrice.toFixed(2)}\n`;
+    if (item.toppings.length > 0) {
+      item.toppings.forEach(t => {
+        message += `    ↳ ${t.name}${t.price > 0 ? ` (+${currencySymbol}${t.price.toFixed(2)})` : ''}\n`;
+      });
+    }
   });
 
   message += `\n*Total: ${currencySymbol}${total.toFixed(2)}*`;

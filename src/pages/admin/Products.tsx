@@ -8,20 +8,30 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Pencil, Trash2, Loader2, ChefHat } from 'lucide-react';
 import { ImageUpload } from '@/components/ImageUpload';
 
 type Product = Database['public']['Tables']['products']['Row'];
 type Category = Database['public']['Tables']['categories']['Row'];
 
+type Topping = {
+  id: string;
+  name: string;
+  price: number;
+  is_active: boolean;
+};
+
 const EMPTY = {
   name: '', description: '', price: '', category_id: '', image_url: '', is_available: true,
+  uses_toppings: false, selected_topping_ids: [] as string[],
 };
 
 export default function Products() {
   const { business } = useBusiness();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [toppings, setToppings] = useState<Topping[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -30,21 +40,38 @@ export default function Products() {
 
   const load = async () => {
     if (!business) return;
-    const [p, c] = await Promise.all([
+    const [p, c, t] = await Promise.all([
       supabase.from('products').select('*').eq('business_id', business.id).order('position'),
       supabase.from('categories').select('*').eq('business_id', business.id).order('position'),
+      (supabase.from('toppings') as any).select('*').eq('business_id', business.id).order('position'),
     ]);
     setProducts(p.data || []);
     setCategories(c.data || []);
+    setToppings(t.data || []);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [business]);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setOpen(true); };
-  const openEdit = (p: Product) => {
+
+  const openEdit = async (p: Product) => {
     setEditing(p);
-    setForm({ name: p.name, description: p.description || '', price: String(p.price), category_id: p.category_id || '', image_url: p.image_url || '', is_available: p.is_available });
+    // load existing topping links
+    const { data: pt } = await (supabase.from('product_toppings') as any)
+      .select('topping_id')
+      .eq('product_id', p.id);
+    const ids = (pt || []).map((x: any) => x.topping_id as string);
+    setForm({
+      name: p.name,
+      description: p.description || '',
+      price: String(p.price),
+      category_id: p.category_id || '',
+      image_url: p.image_url || '',
+      is_available: p.is_available,
+      uses_toppings: ids.length > 0,
+      selected_topping_ids: ids,
+    });
     setOpen(true);
   };
 
@@ -59,11 +86,30 @@ export default function Products() {
       image_url: form.image_url || null,
       is_available: form.is_available,
     };
+
+    let productId = editing?.id;
+
     if (editing) {
       await supabase.from('products').update(payload).eq('id', editing.id);
     } else {
-      await supabase.from('products').insert({ ...payload, business_id: business.id, position: products.length });
+      const { data } = await supabase
+        .from('products')
+        .insert({ ...payload, business_id: business.id, position: products.length })
+        .select()
+        .single();
+      productId = data?.id;
     }
+
+    if (productId) {
+      // sync product_toppings
+      await (supabase.from('product_toppings') as any).delete().eq('product_id', productId);
+      if (form.uses_toppings && form.selected_topping_ids.length > 0) {
+        await (supabase.from('product_toppings') as any).insert(
+          form.selected_topping_ids.map(tid => ({ product_id: productId, topping_id: tid }))
+        );
+      }
+    }
+
     setSaving(false);
     setOpen(false);
     load();
@@ -78,6 +124,15 @@ export default function Products() {
   const toggleAvailable = async (product: Product) => {
     await supabase.from('products').update({ is_available: !product.is_available }).eq('id', product.id);
     setProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_available: !p.is_available } : p));
+  };
+
+  const toggleToppingId = (id: string) => {
+    setForm(f => ({
+      ...f,
+      selected_topping_ids: f.selected_topping_ids.includes(id)
+        ? f.selected_topping_ids.filter(x => x !== id)
+        : [...f.selected_topping_ids, id],
+    }));
   };
 
   const getCategoryName = (id: string | null) => categories.find(c => c.id === id)?.name;
@@ -140,7 +195,7 @@ export default function Products() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Editar producto' : 'Nuevo producto'}</DialogTitle>
           </DialogHeader>
@@ -178,6 +233,52 @@ export default function Products() {
                 folder="products"
               />
             </div>
+
+            {/* Toppings section */}
+            <div className="border border-border rounded-lg p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={form.uses_toppings}
+                  onCheckedChange={v => setForm(f => ({ ...f, uses_toppings: v, selected_topping_ids: v ? f.selected_topping_ids : [] }))}
+                />
+                <div>
+                  <Label className="flex items-center gap-1.5 cursor-pointer">
+                    <ChefHat className="w-3.5 h-3.5" />
+                    Este producto permite toppings
+                  </Label>
+                  <p className="text-xs text-muted-foreground">El cliente podrá elegir ingredientes extras</p>
+                </div>
+              </div>
+
+              {form.uses_toppings && (
+                <div className="space-y-2 pt-1">
+                  {toppings.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      No hay toppings creados. Ve a <strong>Toppings</strong> en el menú para agregarlos.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground font-medium">Selecciona los toppings disponibles para este producto:</p>
+                      <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                        {toppings.map(t => (
+                          <label key={t.id} className="flex items-center gap-2 cursor-pointer text-sm p-1.5 rounded hover:bg-muted/50">
+                            <Checkbox
+                              checked={form.selected_topping_ids.includes(t.id)}
+                              onCheckedChange={() => toggleToppingId(t.id)}
+                            />
+                            <span className="flex-1 min-w-0 truncate">{t.name}</span>
+                            {t.price > 0 && (
+                              <span className="text-xs text-muted-foreground flex-shrink-0">+{currencySymbol}{t.price.toFixed(2)}</span>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-2">
               <Switch checked={form.is_available} onCheckedChange={v => setForm(f => ({ ...f, is_available: v }))} />
               <Label>Disponible</Label>
