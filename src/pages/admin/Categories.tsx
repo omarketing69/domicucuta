@@ -116,6 +116,14 @@ export default function Categories() {
               <Label>Descripción</Label>
               <Textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
             </div>
+            <div className="space-y-1.5">
+              <Label>Imagen de categoría</Label>
+              <ImageUpload
+                value={form.image_url || ''}
+                onChange={url => setForm(f => ({ ...f, image_url: url }))}
+                folder="categories"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
