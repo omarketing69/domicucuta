@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Loader2, GripVertical } from 'lucide-react';
+import { ImageUpload } from '@/components/ImageUpload';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
