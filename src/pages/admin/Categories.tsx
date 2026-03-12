@@ -38,7 +38,7 @@ export default function Categories() {
   const openCreate = () => { setEditing(null); setForm(EMPTY); setOpen(true); };
   const openEdit = (c: Category) => {
     setEditing(c);
-    setForm({ name: c.name, description: c.description || '', position: c.position, is_active: c.is_active });
+    setForm({ name: c.name, description: c.description || '', image_url: c.image_url || '', position: c.position, is_active: c.is_active });
     setOpen(true);
   };
 
