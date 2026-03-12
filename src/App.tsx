@@ -11,6 +11,7 @@ import Products from "@/pages/admin/Products";
 import Categories from "@/pages/admin/Categories";
 import Orders from "@/pages/admin/Orders";
 import Settings from "@/pages/admin/Settings";
+import Toppings from "@/pages/admin/Toppings";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Onboarding from "@/pages/Onboarding";
