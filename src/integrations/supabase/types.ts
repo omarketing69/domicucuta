@@ -237,6 +237,39 @@ export type Database = {
         }
         Relationships: []
       }
+      product_toppings: {
+        Row: {
+          id: string
+          product_id: string
+          topping_id: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          topping_id: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          topping_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_toppings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_toppings_topping_id_fkey"
+            columns: ["topping_id"]
+            isOneToOne: false
+            referencedRelation: "toppings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           business_id: string
@@ -290,6 +323,44 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      toppings: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          position: number
+          price: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          position?: number
+          price?: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          position?: number
+          price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "toppings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
