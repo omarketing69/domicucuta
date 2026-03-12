@@ -8,11 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Loader2, GripVertical } from 'lucide-react';
+import { ImageUpload } from '@/components/ImageUpload';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
 const EMPTY: Omit<Database['public']['Tables']['categories']['Insert'], 'business_id'> = {
-  name: '', description: '', position: 0, is_active: true,
+  name: '', description: '', image_url: '', position: 0, is_active: true,
 };
 
 export default function Categories() {
@@ -37,7 +38,7 @@ export default function Categories() {
   const openCreate = () => { setEditing(null); setForm(EMPTY); setOpen(true); };
   const openEdit = (c: Category) => {
     setEditing(c);
-    setForm({ name: c.name, description: c.description || '', position: c.position, is_active: c.is_active });
+    setForm({ name: c.name, description: c.description || '', image_url: c.image_url || '', position: c.position, is_active: c.is_active });
     setOpen(true);
   };
 
@@ -84,6 +85,11 @@ export default function Categories() {
           {categories.map(cat => (
             <div key={cat.id} className="card-elevated px-4 py-3 flex items-center gap-3">
               <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
+              {cat.image_url ? (
+                <img src={cat.image_url} alt={cat.name} className="w-8 h-8 rounded-md object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-md bg-muted flex-shrink-0" />
+              )}
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">{cat.name}</p>
                 {cat.description && <p className="text-xs text-muted-foreground truncate">{cat.description}</p>}
@@ -114,6 +120,14 @@ export default function Categories() {
             <div className="space-y-1.5">
               <Label>Descripción</Label>
               <Textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Imagen de categoría</Label>
+              <ImageUpload
+                value={form.image_url || ''}
+                onChange={url => setForm(f => ({ ...f, image_url: url }))}
+                folder="categories"
+              />
             </div>
           </div>
           <DialogFooter>

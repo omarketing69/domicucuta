@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { ImageUpload } from '@/components/ImageUpload';
 
 type Product = Database['public']['Tables']['products']['Row'];
 type Category = Database['public']['Tables']['categories']['Row'];
@@ -170,8 +171,12 @@ export default function Products() {
               <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder="Ingredientes, alérgenos..." />
             </div>
             <div className="space-y-1.5">
-              <Label>URL de imagen</Label>
-              <Input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+              <Label>Imagen del producto</Label>
+              <ImageUpload
+                value={form.image_url}
+                onChange={url => setForm(f => ({ ...f, image_url: url }))}
+                folder="products"
+              />
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_available} onCheckedChange={v => setForm(f => ({ ...f, is_available: v }))} />
