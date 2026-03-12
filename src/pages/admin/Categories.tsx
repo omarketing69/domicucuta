@@ -13,7 +13,7 @@ import { ImageUpload } from '@/components/ImageUpload';
 type Category = Database['public']['Tables']['categories']['Row'];
 
 const EMPTY: Omit<Database['public']['Tables']['categories']['Insert'], 'business_id'> = {
-  name: '', description: '', position: 0, is_active: true,
+  name: '', description: '', image_url: '', position: 0, is_active: true,
 };
 
 export default function Categories() {
