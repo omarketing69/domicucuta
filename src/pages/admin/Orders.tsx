@@ -147,7 +147,7 @@ export default function Orders() {
                     )}
                     {business && order.customer_phone && (
                       <a
-                        href={getWhatsAppUrl(business.whatsapp_number, buildWhatsAppMessage(business.name, order.order_items.map(i => ({ product: { name: i.product_name, price: i.product_price, id: '' } as any, quantity: i.quantity })), order.total, currency))}
+                        href={getWhatsAppUrl(business.whatsapp_number, buildWhatsAppMessage(business.name, order.order_items.map(i => ({ cartItemId: i.id, product: { name: i.product_name, price: i.product_price, id: i.product_id || '' } as any, quantity: i.quantity, toppings: [] })), order.total, currency))}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

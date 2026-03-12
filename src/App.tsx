@@ -11,6 +11,7 @@ import Products from "@/pages/admin/Products";
 import Categories from "@/pages/admin/Categories";
 import Orders from "@/pages/admin/Orders";
 import Settings from "@/pages/admin/Settings";
+import Toppings from "@/pages/admin/Toppings";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Onboarding from "@/pages/Onboarding";
@@ -46,6 +47,7 @@ const App = () => (
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="products" element={<Products />} />
+                <Route path="toppings" element={<Toppings />} />
                 <Route path="categories" element={<Categories />} />
                 <Route path="orders" element={<Orders />} />
                 <Route path="settings" element={<Settings />} />

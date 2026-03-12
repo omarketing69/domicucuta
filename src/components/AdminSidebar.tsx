@@ -9,7 +9,7 @@ import {
 import { NavLink } from '@/components/NavLink';
 import {
   LayoutDashboard, Package, FolderOpen, ShoppingBag, Settings,
-  ExternalLink, LogOut
+  ExternalLink, LogOut, ChefHat
 } from 'lucide-react';
 import { PlanBadge } from './PlanBadge';
 import logo from '@/assets/logo.png';
@@ -17,6 +17,7 @@ import logo from '@/assets/logo.png';
 const navItems = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
   { title: 'Productos', url: '/admin/products', icon: Package },
+  { title: 'Toppings', url: '/admin/toppings', icon: ChefHat },
   { title: 'Categorías', url: '/admin/categories', icon: FolderOpen },
   { title: 'Pedidos', url: '/admin/orders', icon: ShoppingBag },
   { title: 'Configuración', url: '/admin/settings', icon: Settings },

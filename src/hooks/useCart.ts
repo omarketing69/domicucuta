@@ -3,9 +3,17 @@ import { Database } from '@/integrations/supabase/types';
 
 type Product = Database['public']['Tables']['products']['Row'];
 
+export interface SelectedTopping {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface CartItem {
+  cartItemId: string; // unique per product+toppings combo
   product: Product;
   quantity: number;
+  toppings: SelectedTopping[];
 }
 
 export function useCart(businessId?: string) {
@@ -21,27 +29,39 @@ export function useCart(businessId?: string) {
     if (businessId) localStorage.setItem(storageKey, JSON.stringify(items));
   }, [items, storageKey, businessId]);
 
-  const addItem = (product: Product) => {
+  const buildCartItemId = (productId: string, toppingIds: string[]) =>
+    `${productId}__${[...toppingIds].sort().join('_')}`;
+
+  const addItem = (product: Product, toppings: SelectedTopping[] = []) => {
+    const cartItemId = buildCartItemId(product.id, toppings.map(t => t.id));
     setItems(prev => {
-      const existing = prev.find(i => i.product.id === product.id);
-      if (existing) return prev.map(i => i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
-      return [...prev, { product, quantity: 1 }];
+      const existing = prev.find(i => i.cartItemId === cartItemId);
+      if (existing) {
+        return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+      return [...prev, { cartItemId, product, quantity: 1, toppings }];
     });
   };
 
-  const removeItem = (productId: string) => {
-    setItems(prev => prev.filter(i => i.product.id !== productId));
+  const removeItem = (cartItemId: string) => {
+    setItems(prev => prev.filter(i => i.cartItemId !== cartItemId));
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) { removeItem(productId); return; }
-    setItems(prev => prev.map(i => i.product.id === productId ? { ...i, quantity } : i));
+  const updateQuantity = (cartItemId: string, quantity: number) => {
+    if (quantity <= 0) { removeItem(cartItemId); return; }
+    setItems(prev => prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity } : i));
   };
 
   const clearCart = () => setItems([]);
 
-  const total = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  const itemToppingTotal = (item: CartItem) =>
+    item.toppings.reduce((s, t) => s + t.price, 0);
+
+  const total = items.reduce(
+    (sum, i) => sum + (i.product.price + itemToppingTotal(i)) * i.quantity,
+    0
+  );
   const count = items.reduce((sum, i) => sum + i.quantity, 0);
 
-  return { items, addItem, removeItem, updateQuantity, clearCart, total, count };
+  return { items, addItem, removeItem, updateQuantity, clearCart, total, count, itemToppingTotal };
 }
