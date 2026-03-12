@@ -85,6 +85,11 @@ export default function Categories() {
           {categories.map(cat => (
             <div key={cat.id} className="card-elevated px-4 py-3 flex items-center gap-3">
               <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
+              {cat.image_url ? (
+                <img src={cat.image_url} alt={cat.name} className="w-8 h-8 rounded-md object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-md bg-muted flex-shrink-0" />
+              )}
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">{cat.name}</p>
                 {cat.description && <p className="text-xs text-muted-foreground truncate">{cat.description}</p>}
