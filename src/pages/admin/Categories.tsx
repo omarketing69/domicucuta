@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { Database } from '@/integrations/supabase/types';
@@ -24,6 +24,10 @@ export default function Categories() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<typeof EMPTY>(EMPTY);
   const [saving, setSaving] = useState(false);
+
+  // Drag state
+  const dragIndex = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const load = async () => {
     if (!business) return;
@@ -61,6 +65,47 @@ export default function Categories() {
     load();
   };
 
+  // ─── Drag handlers ───────────────────────────────────────────────────────────
+  const handleDragStart = (index: number) => {
+    dragIndex.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    const from = dragIndex.current;
+    if (from === null || from === dropIndex) {
+      setDragOverIndex(null);
+      return;
+    }
+
+    // Reorder locally
+    const reordered = [...categories];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(dropIndex, 0, moved);
+    const withPositions = reordered.map((c, i) => ({ ...c, position: i }));
+    setCategories(withPositions);
+    setDragOverIndex(null);
+    dragIndex.current = null;
+
+    // Persist new positions
+    await Promise.all(
+      withPositions.map(c =>
+        supabase.from('categories').update({ position: c.position }).eq('id', c.id)
+      )
+    );
+  };
+
+  const handleDragEnd = () => {
+    setDragOverIndex(null);
+    dragIndex.current = null;
+  };
+  // ─────────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
@@ -82,9 +127,23 @@ export default function Categories() {
         </div>
       ) : (
         <div className="space-y-2">
-          {categories.map(cat => (
-            <div key={cat.id} className="card-elevated px-4 py-3 flex items-center gap-3">
-              <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
+          {categories.map((cat, index) => (
+            <div
+              key={cat.id}
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={e => handleDragOver(e, index)}
+              onDrop={e => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
+              data-testid={`category-row-${cat.id}`}
+              className={[
+                'card-elevated px-4 py-3 flex items-center gap-3 transition-all select-none',
+                dragOverIndex === index && dragIndex.current !== index
+                  ? 'border-primary border-2 shadow-md scale-[1.01]'
+                  : '',
+              ].join(' ')}
+            >
+              <GripVertical className="w-4 h-4 text-muted-foreground/60 flex-shrink-0 cursor-grab active:cursor-grabbing" />
               {cat.image_url ? (
                 <img src={cat.image_url} alt={cat.name} className="w-8 h-8 rounded-md object-cover flex-shrink-0" />
               ) : (
@@ -104,6 +163,9 @@ export default function Categories() {
               </div>
             </div>
           ))}
+          <p className="text-xs text-muted-foreground text-center pt-1 flex items-center justify-center gap-1">
+            <GripVertical className="w-3 h-3" /> Arrastra para cambiar el orden
+          </p>
         </div>
       )}
 

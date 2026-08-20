@@ -1,0 +1,398 @@
+PROMPT PARA REPLIT
+Quiero rediseñar completamente el módulo de Pedidos de WhatsOrder.
+
+La filosofía cambia completamente.
+
+No quiero un Kanban donde el cajero tenga que mover tarjetas manualmente.
+
+Quiero un Centro de Producción Inteligente dirigido por IA y por reglas de negocio.
+
+FILOSOFÍA
+El restaurante no quiere administrar software.
+
+Quiere preparar comida.
+
+Por lo tanto el sistema debe hacer automáticamente el 95% del trabajo.
+
+Los empleados solamente deben intervenir cuando exista una excepción.
+
+EL KANBAN DESAPARECE
+Eliminar el Kanban tradicional.
+
+Reemplazarlo por una línea de producción inteligente basada en tiempo.
+
+Cada pedido tendrá una barra gráfica de progreso.
+
+Ejemplo:
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+Pedido #2451
+
+🟢 Confirmado
+
+██████████░░░░░░░░░░░
+
+Tiempo transcurrido
+
+12 minutos
+
+Tiempo esperado
+
+35 minutos
+
+Restan
+
+23 minutos
+
+Estado
+
+Preparación
+
+La barra debe actualizarse automáticamente cada segundo.
+
+CONFIGURACIÓN POR NEGOCIO
+Cada negocio podrá configurar sus tiempos.
+
+Ejemplo:
+
+Recepción
+
+1 minuto
+
+Preparación
+
+18 minutos
+
+Empaque
+
+5 minutos
+
+Entrega al domiciliario
+
+3 minutos
+
+Tiempo promedio de entrega
+
+20 minutos
+
+Tiempo total esperado
+
+47 minutos
+
+Todos estos tiempos deben ser configurables.
+
+EL SISTEMA MUEVE AUTOMÁTICAMENTE EL PEDIDO
+No esperar que un cajero cambie estados.
+
+Cuando se cumpla el tiempo esperado, el sistema avanzará automáticamente.
+
+Ejemplo:
+
+Pedido recibido
+
+↓
+
+En preparación
+
+↓
+
+Empacado
+
+↓
+
+Esperando domiciliario
+
+↓
+
+En camino
+
+↓
+
+Entregado
+
+Todo esto ocurre automáticamente.
+
+EXCEPCIONES
+Si ocurre un problema, el empleado puede pausar el flujo.
+
+Ejemplos:
+
+Producto agotado
+
+Cliente llamó
+
+Cambio de dirección
+
+Falta un ingrediente
+
+Retraso del domiciliario
+
+Cliente canceló
+
+En estos casos el temporizador se congela.
+
+PANTALLA TIPO AEROPUERTO
+La pantalla principal debe parecerse a una torre de control.
+
+No quiero tarjetas.
+
+Quiero filas ordenadas por prioridad.
+
+Cada pedido mostrará:
+
+Número
+
+Cliente
+
+Tiempo transcurrido
+
+Tiempo restante
+
+Estado
+
+Color de riesgo
+
+Valor del pedido
+
+Prioridad
+
+COLORES
+Verde
+
+Va antes del tiempo esperado.
+
+Amarillo
+
+Está cerca del límite.
+
+Rojo
+
+Ya superó el tiempo prometido.
+
+Morado
+
+Pedido pausado.
+
+Azul
+
+Pedido entregado.
+
+Todo debe cambiar automáticamente.
+
+CUENTA REGRESIVA
+Cada pedido tendrá un cronómetro visible.
+
+Ejemplo:
+
+Tiempo restante
+
+18:42
+
+17:59
+
+17:58
+
+17:57
+
+Debe actualizarse en tiempo real.
+
+PRESIÓN VISUAL
+Cuando un pedido entra en zona amarilla:
+
+Animación suave.
+
+Cuando entra en rojo:
+
+Animación más visible.
+
+Debe captar inmediatamente la atención del personal.
+
+No debe ser agresivo.
+
+Debe generar sentido de urgencia.
+
+IA PREDICTIVA
+No usar siempre tiempos fijos.
+
+Después de suficientes pedidos, la IA debe aprender.
+
+Ejemplos:
+
+Los viernes tarda más.
+
+Los domingos tarda menos.
+
+Cuando hay más de 15 pedidos simultáneos aumenta el tiempo.
+
+Cuando el pedido supera cierto valor tarda más.
+
+Cuando incluye pizza tarda más.
+
+Cuando incluye hamburguesas tarda menos.
+
+La IA ajustará automáticamente los tiempos estimados.
+
+PÁGINA DE SEGUIMIENTO DEL CLIENTE
+No utilizar WhatsApp para informar cada cambio.
+
+Al confirmar el pedido se genera automáticamente un enlace único.
+
+Ejemplo:
+
+https://whatorden.com/tracking/ABCD1234
+
+Ese enlace nunca requiere iniciar sesión.
+
+El cliente podrá abrirlo desde cualquier dispositivo.
+
+PANTALLA DEL CLIENTE
+Mostrar únicamente información útil.
+
+Ejemplo:
+
+Pedido #2451
+
+🍔 En preparación
+
+██████████████░░░░░░
+
+52%
+
+Tiempo estimado restante
+
+18 minutos
+
+Hora estimada de entrega
+
+7:42 PM
+
+Estado actual
+
+Preparando tu pedido.
+
+Debajo mostrar una línea de tiempo.
+
+✔ Pedido recibido
+
+✔ Pago confirmado
+
+🔄 Preparando
+
+○ Empacando
+
+○ En camino
+
+○ Entregado
+
+Todo debe actualizarse automáticamente.
+
+No será necesario recargar la página.
+
+Utilizar WebSockets o actualización en tiempo real.
+
+SOLO UN MENSAJE
+Cuando el cliente termina el pedido:
+
+Enviar únicamente una confirmación.
+
+Ejemplo:
+
+"Tu pedido fue recibido correctamente.
+
+Puedes seguir su estado en tiempo real aquí:
+
+https://whatorden.com/tracking/ABCD1234"
+
+Después de eso no enviar más mensajes automáticos.
+
+Toda la experiencia ocurre dentro del enlace.
+
+DASHBOARD DEL RESTAURANTE
+Mostrar indicadores en tiempo real.
+
+Pedidos activos
+
+Pedidos retrasados
+
+Tiempo promedio
+
+Tiempo estimado
+
+Tiempo real
+
+Pedidos entregados
+
+Pedidos por hora
+
+Pedidos en riesgo
+
+Pedidos pausados
+
+Pedidos listos para entregar
+
+Pedidos próximos a vencer
+
+IA OPERATIVA
+Crear un panel llamado:
+
+Recomendaciones IA
+
+Ejemplos:
+
+Hay demasiados pedidos esperando empaque.
+
+La cocina está acumulando retraso.
+
+Se recomienda asignar otro cocinero.
+
+El tiempo promedio aumentó un 25%.
+
+Los pedidos con pizza están tardando demasiado.
+
+Los domicilios están demorando más de lo normal.
+
+HISTORIAL
+Guardar automáticamente:
+
+Hora del pedido.
+
+Hora de inicio de preparación.
+
+Hora de empaque.
+
+Hora de salida.
+
+Hora de entrega.
+
+Tiempo total.
+
+Tiempo real.
+
+Tiempo esperado.
+
+Diferencia.
+
+Toda esta información servirá para que la IA aprenda continuamente.
+
+OBJETIVO
+No quiero construir un sistema que administre pedidos.
+
+Quiero construir un sistema que administre el tiempo.
+
+El sistema debe sentirse como una torre de control de producción que coordina automáticamente la operación, reduce retrasos, mejora la experiencia del cliente y ayuda al restaurante a cumplir sus promesas sin depender de que los empleados actualicen manualmente cada etapa.
+
+Una mejora adicional que considero muy potente
+Añadiría un indicador llamado "Índice de Cumplimiento", visible tanto para el dueño como para el equipo.
+
+Por ejemplo:
+
+🟢 96% de pedidos entregados a tiempo hoy
+
+⏱️ Tiempo promedio prometido: 35 min
+
+🚀 Tiempo promedio real: 32 min
+
+📈 Mejora frente a la semana pasada: +8%
+
+Esto convierte el módulo de pedidos en una herramienta de gestión del desempeño del negocio, no solo en un listado de órdenes. Para un propietario, esa información es mucho más valiosa que saber simplemente cuántos pedidos hay en preparación. Además, puede convertirse en un argumento de venta muy fuerte para WhatsOrder: "No solo organizamos tus pedidos; te ayudamos a entregar más rápido y medir el rendimiento de tu operación."

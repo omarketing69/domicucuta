@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MailCheck } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
 export default function Register() {
@@ -13,19 +13,60 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin }
+      options: { emailRedirectTo: `${window.location.origin}/login` }
     });
     if (error) { setError(error.message); setLoading(false); return; }
-    navigate('/admin/onboarding');
+
+    if (data.session) {
+      // Email confirmation is disabled — user is immediately logged in
+      navigate('/admin/onboarding');
+    } else {
+      // Email confirmation is required — show check-your-inbox screen
+      setConfirming(true);
+      setLoading(false);
+    }
   };
+
+  if (confirming) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="flex items-center gap-2 justify-center mb-8">
+            <img src={logo} alt="DomiCircusPop" className="w-10 h-10" />
+            <span className="text-xl font-semibold tracking-tight">DomiCircusPop</span>
+          </div>
+          <div className="card-elevated p-8 space-y-4">
+            <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <MailCheck className="w-7 h-7 text-primary" />
+            </div>
+            <h1 className="text-lg font-semibold">Revisa tu correo</h1>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Te enviamos un enlace de confirmación a <span className="font-medium text-foreground">{email}</span>.
+              Haz clic en el enlace para activar tu cuenta y continuar con la configuración.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              ¿No lo ves? Revisa la carpeta de spam.
+            </p>
+          </div>
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            ¿Ya confirmaste?{' '}
+            <Link to="/login" className="text-primary font-medium hover:underline">
+              Inicia sesión
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

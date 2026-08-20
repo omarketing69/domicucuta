@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
+import { isTopping } from '@/lib/flavorUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,7 +37,8 @@ export default function Toppings() {
       .select('*')
       .eq('business_id', business.id)
       .order('position');
-    setToppings((data as Topping[]) || []);
+    // Filter out flavors (stored with __SABOR__ prefix) — they are managed in the Sabores page
+    setToppings(((data as Topping[]) || []).filter(t => isTopping(t.name)));
     setLoading(false);
   };
 

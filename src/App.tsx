@@ -10,12 +10,21 @@ import Dashboard from "@/pages/admin/Dashboard";
 import Products from "@/pages/admin/Products";
 import Categories from "@/pages/admin/Categories";
 import Orders from "@/pages/admin/Orders";
+import Servicios from "@/pages/admin/Servicios";
+import Agenda from "@/pages/admin/Agenda";
+import Customers from "@/pages/admin/Customers";
 import Settings from "@/pages/admin/Settings";
 import Toppings from "@/pages/admin/Toppings";
+import Flavors from "@/pages/admin/Flavors";
+import Crm from "@/pages/admin/Crm";
+import CrmIntelligente from "@/pages/admin/CrmIntelligente";
+import AgenteIA from "@/pages/admin/AgenteIA";
+import DirectorVentas from "@/pages/admin/DirectorVentas";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Onboarding from "@/pages/Onboarding";
 import PublicMenu from "@/pages/PublicMenu";
+import Tracking from "@/pages/Tracking";
 import Pricing from "@/pages/Pricing";
 import NotFound from "@/pages/NotFound";
 import SuperAdminLayout from "@/pages/superadmin/SuperAdminLayout";
@@ -39,6 +48,7 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/b/:slug" element={<PublicMenu />} />
+            <Route path="/tracking/:code" element={<Tracking />} />
 
             {/* Protected admin routes */}
             <Route element={<ProtectedRoute />}>
@@ -48,8 +58,16 @@ const App = () => (
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="products" element={<Products />} />
                 <Route path="toppings" element={<Toppings />} />
+                <Route path="flavors" element={<Flavors />} />
                 <Route path="categories" element={<Categories />} />
                 <Route path="orders" element={<Orders />} />
+                <Route path="servicios" element={<Servicios />} />
+                <Route path="agenda" element={<Agenda />} />
+                <Route path="customers" element={<Customers />} />
+                <Route path="crm" element={<CrmIntelligente />} />
+                <Route path="crm-clasico" element={<Crm />} />
+                <Route path="agente-ia" element={<AgenteIA />} />
+                <Route path="director-ventas" element={<DirectorVentas />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Route>

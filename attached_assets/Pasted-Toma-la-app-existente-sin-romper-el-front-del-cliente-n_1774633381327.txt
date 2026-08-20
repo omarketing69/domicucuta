@@ -1,0 +1,56 @@
+Toma la app existente sin romper el front del cliente ni el panel del restaurante.
+
+Objetivo:
+Agregar una operación interna para pedidos de restaurante con:
+1. Tablero tipo Kanban de 4 columnas:
+   - Entrada de pedido
+   - En preparación
+   - En camino
+   - Entregado/Pagado
+2. Cuando un pedido cambie de columna, guardar el evento en historial y disparar un mensaje al cliente.
+3. Mejorar el módulo de clientes para que se vea como CRM visual, con mejor UI, historial de pedidos, últimos mensajes, etiquetas y búsqueda rápida.
+
+Requisitos del tablero:
+- Drag and drop de pedidos entre columnas.
+- Tarjetas con nombre del cliente, teléfono, items, total, hora y observaciones.
+- Color por estado.
+- Indicadores visuales de prioridad.
+- Registrar fecha, hora y usuario que hizo el cambio.
+
+Mensajería:
+- No usar Meta API.
+- Enviar mensaje manual con texto prellenado o copiar al portapapeles.
+- Crear botones rápidos por estado:
+  - “Recibimos tu pedido”
+  - “Tu pedido está en preparación”
+  - “Tu pedido va en camino”
+  - “Pedido entregado / pagado”
+- Si el sistema detecta que no puede enviar automáticamente, dejar el mensaje listo para abrir WhatsApp con wa.me.
+
+CRM interno:
+- Vista tipo inbox/CRM con tarjeta de cliente.
+- Mostrar nombre, teléfono, cantidad de pedidos, total gastado, última compra, estado, notas internas y etiquetas.
+- Historial de pedidos y mensajes por cliente.
+- Buscador por nombre, teléfono o código de pedido.
+- Diseño más moderno, limpio y usable.
+
+Diseño:
+- Mantener el estilo actual pero hacerlo más profesional.
+- Panel lateral con métricas:
+  - pedidos nuevos,
+  - en preparación,
+  - en camino,
+  - entregados hoy.
+- Mejor uso de colores, sombras suaves, badges y microinteracciones.
+- Vista responsiva para escritorio y tablet.
+
+Base de datos:
+- Agregar campos para:
+  - order_status,
+  - order_status_history,
+  - customer_notes,
+  - customer_tags,
+  - message_templates,
+  - message_logs.
+
+No rehacer el sistema completo. Solo extender el proyecto existente y dejarlo funcional con código limpio.

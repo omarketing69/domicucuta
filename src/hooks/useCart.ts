@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Database } from '@/integrations/supabase/types';
 
 type Product = Database['public']['Tables']['products']['Row'];
@@ -9,37 +9,63 @@ export interface SelectedTopping {
   price: number;
 }
 
+export interface SelectedFlavor {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface CartItem {
-  cartItemId: string; // unique per product+toppings combo
+  cartItemId: string;
   product: Product;
   quantity: number;
+  flavor: SelectedFlavor | null;
+  flavorHalf2: SelectedFlavor | null;
   toppings: SelectedTopping[];
 }
 
 export function useCart(businessId?: string) {
-  const storageKey = `cart_${businessId}`;
-  const [items, setItems] = useState<CartItem[]>(() => {
-    if (!businessId) return [];
-    try {
-      return JSON.parse(localStorage.getItem(storageKey) || '[]');
-    } catch { return []; }
-  });
+  const [items, setItems] = useState<CartItem[]>([]);
+  const initialized = useRef(false);
 
+  // Load from localStorage when businessId first becomes available
   useEffect(() => {
-    if (businessId) localStorage.setItem(storageKey, JSON.stringify(items));
-  }, [items, storageKey, businessId]);
+    if (!businessId) return;
+    if (!initialized.current) {
+      initialized.current = true;
+      try {
+        const saved = localStorage.getItem(`cart_${businessId}`);
+        if (saved) setItems(JSON.parse(saved));
+      } catch { /* ignore */ }
+    }
+  }, [businessId]);
 
-  const buildCartItemId = (productId: string, toppingIds: string[]) =>
-    `${productId}__${[...toppingIds].sort().join('_')}`;
+  // Persist to localStorage whenever items change (only after businessId is ready)
+  useEffect(() => {
+    if (!businessId || !initialized.current) return;
+    localStorage.setItem(`cart_${businessId}`, JSON.stringify(items));
+  }, [items, businessId]);
 
-  const addItem = (product: Product, toppings: SelectedTopping[] = []) => {
-    const cartItemId = buildCartItemId(product.id, toppings.map(t => t.id));
+  const buildCartItemId = (
+    productId: string,
+    flavorId: string | null,
+    flavorHalf2Id: string | null,
+    toppingIds: string[]
+  ) => `${productId}__${flavorId || ''}__${flavorHalf2Id || ''}__${[...toppingIds].sort().join('_')}`;
+
+  const addItem = (
+    product: Product,
+    flavor: SelectedFlavor | null = null,
+    toppings: SelectedTopping[] = [],
+    flavorHalf2: SelectedFlavor | null = null
+  ) => {
+    const cartItemId = buildCartItemId(product.id, flavor?.id || null, flavorHalf2?.id || null, toppings.map(t => t.id));
     setItems(prev => {
       const existing = prev.find(i => i.cartItemId === cartItemId);
       if (existing) {
         return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + 1 } : i);
       }
-      return [...prev, { cartItemId, product, quantity: 1, toppings }];
+      return [...prev, { cartItemId, product, quantity: 1, flavor: flavor || null, flavorHalf2: flavorHalf2 || null, toppings }];
     });
   };
 
@@ -54,14 +80,20 @@ export function useCart(businessId?: string) {
 
   const clearCart = () => setItems([]);
 
+  const itemFlavorPrice = (item: CartItem) => {
+    const p1 = item.flavor?.price || 0;
+    const p2 = item.flavorHalf2?.price || 0;
+    return Math.max(p1, p2);
+  };
+
   const itemToppingTotal = (item: CartItem) =>
     item.toppings.reduce((s, t) => s + t.price, 0);
 
   const total = items.reduce(
-    (sum, i) => sum + (i.product.price + itemToppingTotal(i)) * i.quantity,
+    (sum, i) => sum + (i.product.price + itemFlavorPrice(i) + itemToppingTotal(i)) * i.quantity,
     0
   );
   const count = items.reduce((sum, i) => sum + i.quantity, 0);
 
-  return { items, addItem, removeItem, updateQuantity, clearCart, total, count, itemToppingTotal };
+  return { items, addItem, removeItem, updateQuantity, clearCart, total, count, itemFlavorPrice, itemToppingTotal };
 }

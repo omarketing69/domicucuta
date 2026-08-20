@@ -1,0 +1,419 @@
+Quiero transformar completamente el módulo CRM existente. Actualmente funciona como un CRM tradicional con un Kanban administrado manualmente. Quiero convertirlo en un CRM Inteligente dirigido por Inteligencia Artificial.
+
+FILOSOFÍA DEL PRODUCTO
+El CRM NO debe ser un lugar donde el usuario administra conversaciones.
+
+El CRM debe ser un asistente comercial autónomo que analiza toda la información generada por el agente IA del catálogo digital y toma decisiones automáticamente.
+
+La conversación ocurre completamente dentro del catálogo digital.
+
+WhatsApp únicamente sirve para:
+
+iniciar la conversación
+
+compartir el enlace del catálogo
+
+recibir el pedido final
+
+Nunca dependeremos de WhatsApp para almacenar información ni para el CRM.
+
+Toda la inteligencia vive dentro de nuestra plataforma.
+
+OBJETIVO
+El administrador nunca debería tener que leer cientos de mensajes.
+
+La IA debe convertir automáticamente una conversación en información comercial útil.
+
+El administrador debe abrir el CRM y entender en menos de un minuto qué clientes requieren atención y qué oportunidades existen.
+
+EL KANBAN DEBE SER AUTOMÁTICO
+Eliminar el concepto de mover tarjetas manualmente.
+
+La IA será quien cambie el estado del Lead.
+
+Estados sugeridos:
+
+Nuevo visitante
+
+↓
+
+Interesado
+
+↓
+
+Cotizando
+
+↓
+
+Carrito iniciado
+
+↓
+
+Carrito abandonado
+
+↓
+
+Pedido confirmado
+
+↓
+
+En preparación
+
+↓
+
+En camino
+
+↓
+
+Cliente atendido
+
+↓
+
+Recompra sugerida
+
+↓
+
+Cliente inactivo
+
+Cada transición debe ocurrir automáticamente analizando la conversación y el comportamiento del cliente.
+
+CADA LEAD DEBE TENER UNA FICHA INTELIGENTE
+Mostrar:
+
+Nombre
+
+Teléfono
+
+Fecha primer contacto
+
+Última actividad
+
+Valor estimado del pedido
+
+Número de pedidos
+
+Valor total comprado
+
+Frecuencia de compra
+
+Productos favoritos
+
+Horario favorito para comprar
+
+Forma de pago favorita
+
+Canal de entrada
+
+Tiempo desde la última compra
+
+Lead Score
+
+Probabilidad de compra
+
+Estado actual del Kanban
+
+RESUMEN AUTOMÁTICO GENERADO POR IA
+No mostrar primero la conversación.
+
+Mostrar un resumen generado automáticamente.
+
+Ejemplo:
+
+"Cliente interesado en pizza familiar.
+
+Comparó precios.
+
+Preguntó tiempo de entrega.
+
+Tiene alta intención de compra.
+
+Agregó productos al carrito.
+
+Abandonó la compra antes del pago.
+
+Se recomienda enviar promoción del 10%."
+
+Este resumen debe actualizarse automáticamente cada vez que cambia la conversación.
+
+LEAD SCORE DINÁMICO
+La IA debe calcular un puntaje entre 0 y 100.
+
+Debe considerar:
+
+Tiempo dentro del catálogo
+
+Cantidad de preguntas
+
+Número de productos vistos
+
+Productos agregados
+
+Productos eliminados
+
+Número de visitas
+
+Valor del carrito
+
+Historial de compras
+
+Frecuencia
+
+Tiempo sin comprar
+
+Abandono del carrito
+
+Confirmación de dirección
+
+Confirmación de pago
+
+Cada evento debe modificar automáticamente el puntaje.
+
+Mostrar además:
+
+★★★★★
+
+Excelente oportunidad
+
+★★★★☆
+
+Alta probabilidad
+
+★★★☆☆
+
+Interés medio
+
+★★☆☆☆
+
+Interés bajo
+
+★☆☆☆☆
+
+Cliente frío
+
+MOTOR DE OPORTUNIDADES
+Crear un panel completamente nuevo.
+
+Debe mostrar automáticamente cosas como:
+
+18 clientes abandonaron carrito
+
+12 preguntaron por promociones
+
+9 quieren domicilio
+
+7 preguntaron por un producto agotado
+
+5 clientes cumplen años esta semana
+
+14 clientes no compran hace más de 30 días
+
+8 clientes podrían comprar nuevamente hoy
+
+No usar datos estáticos.
+
+Todo debe calcularse automáticamente.
+
+TAREAS AUTOMÁTICAS
+La IA debe crear tareas sin intervención humana.
+
+Ejemplos:
+
+Llamar mañana.
+
+Enviar promoción.
+
+Recordar cumpleaños.
+
+Ofrecer postre.
+
+Preguntar si recibió el pedido.
+
+Solicitar reseña.
+
+Intentar recuperar carrito.
+
+Las tareas deben aparecer automáticamente.
+
+INSIGHTS DEL CLIENTE
+La IA debe aprender del cliente.
+
+Ejemplo:
+
+Prefiere pagar con tarjeta.
+
+Siempre compra viernes.
+
+Le gustan las hamburguesas.
+
+No le gusta la cebolla.
+
+Compra para cuatro personas.
+
+Siempre pregunta por promociones.
+
+Alta sensibilidad al precio.
+
+Cliente fiel.
+
+Toda esta información debe actualizarse automáticamente.
+
+TIMELINE INTELIGENTE
+No mostrar solamente mensajes.
+
+Mostrar eventos.
+
+Ejemplo:
+
+Entró al catálogo.
+
+Preguntó horarios.
+
+Vio pizzas.
+
+Comparó combos.
+
+Agregó hamburguesa.
+
+Quitó bebida.
+
+Solicitó domicilio.
+
+Confirmó dirección.
+
+Pagó.
+
+Pedido entregado.
+
+La conversación completa debe quedar disponible únicamente si el administrador desea abrirla.
+
+DASHBOARD COMERCIAL
+Crear un Dashboard principal con indicadores como:
+
+Ventas estimadas del día
+
+Clientes activos
+
+Clientes nuevos
+
+Clientes recuperados
+
+Carritos abandonados
+
+Probabilidad de ventas
+
+Lead Score promedio
+
+Tiempo promedio para cerrar ventas
+
+Valor promedio de compra
+
+Clientes VIP
+
+Clientes en riesgo
+
+Productos más consultados
+
+Productos más abandonados
+
+Consultas más frecuentes
+
+AGENTE IA COMERCIAL
+Agregar un botón:
+
+"Preguntar a la IA"
+
+El administrador podrá escribir:
+
+¿Quiénes tienen mayor probabilidad de comprar hoy?
+
+¿Qué clientes debo llamar primero?
+
+¿Por qué bajaron las ventas?
+
+¿Qué productos generan más abandono?
+
+¿Qué promociones recomiendas?
+
+¿Qué clientes puedo recuperar?
+
+La IA responderá utilizando únicamente la información almacenada en el CRM.
+
+MEMORIA COMERCIAL
+La IA debe construir un perfil permanente del cliente.
+
+No solo guardar conversaciones.
+
+Debe aprender continuamente.
+
+Ejemplos:
+
+Cliente muy impulsivo.
+
+Compra cuando hay promociones.
+
+Cliente premium.
+
+Cliente muy fiel.
+
+Cliente muy sensible al precio.
+
+Siempre compra los domingos.
+
+Compra para oficina.
+
+Compra para familia.
+
+Toda esta información debe actualizarse automáticamente.
+
+ARQUITECTURA
+Separar completamente:
+
+Conversación
+
+Memoria del cliente
+
+Eventos
+
+Insights
+
+Lead Score
+
+Resumen IA
+
+Timeline
+
+Tareas
+
+Kanban
+
+Dashboard
+
+Todos estos módulos deben ser independientes para facilitar futuras mejoras.
+
+EXPERIENCIA DE USUARIO
+El CRM debe sentirse como si un Director Comercial estuviera trabajando 24 horas al día.
+
+El administrador nunca debe sentir que está administrando datos.
+
+Debe sentir que la IA le dice exactamente:
+
+qué cliente atender
+
+qué oportunidad existe
+
+qué promoción enviar
+
+quién está a punto de comprar
+
+quién está a punto de perderse
+
+qué acción genera más ventas
+
+El objetivo final es que este CRM no sea un registro de clientes, sino un Director Comercial Autónomo, donde el 90% del trabajo comercial sea realizado por la Inteligencia Artificial y el administrador únicamente tome decisiones estratégicas.
+
+Una idea adicional que puede convertir tu producto en algo muy difícil de copiar
+Yo añadiría un concepto llamado "Memoria Comercial Universal". Cada interacción del cliente —aunque no termine en una compra— alimenta un perfil vivo que la IA utiliza en futuras conversaciones.
+
+Por ejemplo, si hace tres meses un cliente preguntó por una pizza vegetariana y no compró, cuando vuelva a entrar la IA podrá decir: "La última vez te interesó nuestra pizza vegetariana. Hoy tenemos una promoción del 15% en ese producto."
+
+Eso hace que cada conversación sea más inteligente que la anterior y convierte tu plataforma en un activo que gana valor con el tiempo.

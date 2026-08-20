@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_conversations: {
+        Row: {
+          id: string
+          business_id: string
+          slug: string
+          customer_name: string | null
+          customer_phone: string | null
+          messages: Json
+          had_order: boolean
+          order_data: Json | null
+          source: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          slug: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          messages?: Json
+          had_order?: boolean
+          order_data?: Json | null
+          source?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          slug?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          messages?: Json
+          had_order?: boolean
+          order_data?: Json | null
+          source?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       businesses: {
         Row: {
           address: string | null
@@ -31,7 +81,12 @@ export type Database = {
           primary_color: string | null
           slug: string
           updated_at: string
+          wa_access_token: string | null
+          wa_phone_number_id: string | null
           whatsapp_number: string
+          ai_enabled: boolean
+          ai_prompt: string | null
+          ai_auto_reply_mode: string
         }
         Insert: {
           address?: string | null
@@ -49,7 +104,12 @@ export type Database = {
           primary_color?: string | null
           slug: string
           updated_at?: string
+          wa_access_token?: string | null
+          wa_phone_number_id?: string | null
           whatsapp_number: string
+          ai_enabled?: boolean
+          ai_prompt?: string | null
+          ai_auto_reply_mode?: string
         }
         Update: {
           address?: string | null
@@ -67,9 +127,67 @@ export type Database = {
           primary_color?: string | null
           slug?: string
           updated_at?: string
+          wa_access_token?: string | null
+          wa_phone_number_id?: string | null
           whatsapp_number?: string
+          ai_enabled?: boolean
+          ai_prompt?: string | null
+          ai_auto_reply_mode?: string
         }
         Relationships: []
+      }
+      customers: {
+        Row: {
+          id: string
+          business_id: string
+          name: string
+          phone: string | null
+          email: string | null
+          notes: string | null
+          is_active: boolean
+          total_orders: number
+          last_order_at: string | null
+          created_at: string
+          tags: string[]
+          address: string | null
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          name: string
+          phone?: string | null
+          email?: string | null
+          notes?: string | null
+          is_active?: boolean
+          total_orders?: number
+          last_order_at?: string | null
+          created_at?: string
+          tags?: string[]
+          address?: string | null
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          name?: string
+          phone?: string | null
+          email?: string | null
+          notes?: string | null
+          is_active?: boolean
+          total_orders?: number
+          last_order_at?: string | null
+          created_at?: string
+          tags?: string[]
+          address?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       categories: {
         Row: {
@@ -108,6 +226,41 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_status_history: {
+        Row: {
+          id: string
+          order_id: string
+          from_status: string
+          to_status: string
+          changed_at: string
+          note: string | null
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          from_status: string
+          to_status: string
+          changed_at?: string
+          note?: string | null
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          from_status?: string
+          to_status?: string
+          changed_at?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -163,6 +316,8 @@ export type Database = {
           created_at: string
           customer_name: string | null
           customer_phone: string | null
+          delivery_type: string
+          delivery_address: string | null
           id: string
           notes: string | null
           status: string
@@ -175,6 +330,8 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_type?: string
+          delivery_address?: string | null
           id?: string
           notes?: string | null
           status?: string
@@ -187,6 +344,8 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_type?: string
+          delivery_address?: string | null
           id?: string
           notes?: string | null
           status?: string
@@ -283,6 +442,9 @@ export type Database = {
           position: number
           price: number
           updated_at: string
+          uses_toppings: boolean
+          uses_flavors: boolean
+          allows_half_half: boolean
         }
         Insert: {
           business_id: string
@@ -296,6 +458,9 @@ export type Database = {
           position?: number
           price: number
           updated_at?: string
+          uses_toppings?: boolean
+          uses_flavors?: boolean
+          allows_half_half?: boolean
         }
         Update: {
           business_id?: string
@@ -309,6 +474,9 @@ export type Database = {
           position?: number
           price?: number
           updated_at?: string
+          uses_toppings?: boolean
+          uses_flavors?: boolean
+          allows_half_half?: boolean
         }
         Relationships: [
           {
@@ -380,6 +548,357 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      wa_contacts: {
+        Row: {
+          id: string
+          business_id: string
+          phone: string
+          name: string | null
+          status: string
+          tags: string[]
+          score: number
+          notes: string | null
+          last_interaction_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          phone: string
+          name?: string | null
+          status?: string
+          tags?: string[]
+          score?: number
+          notes?: string | null
+          last_interaction_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          phone?: string
+          name?: string | null
+          status?: string
+          tags?: string[]
+          score?: number
+          notes?: string | null
+          last_interaction_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_contacts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_conversations: {
+        Row: {
+          id: string
+          business_id: string
+          contact_id: string
+          status: string
+          unread_count: number
+          last_message_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          contact_id: string
+          status?: string
+          unread_count?: number
+          last_message_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          contact_id?: string
+          status?: string
+          unread_count?: number
+          last_message_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_messages: {
+        Row: {
+          id: string
+          business_id: string
+          conversation_id: string
+          contact_id: string
+          wa_message_id: string | null
+          direction: string
+          type: string
+          content: string | null
+          media_url: string | null
+          intent: string | null
+          sent_by_ai: boolean
+          status: string
+          wa_timestamp: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          conversation_id: string
+          contact_id: string
+          wa_message_id?: string | null
+          direction: string
+          type?: string
+          content?: string | null
+          media_url?: string | null
+          intent?: string | null
+          sent_by_ai?: boolean
+          status?: string
+          wa_timestamp?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          conversation_id?: string
+          contact_id?: string
+          wa_message_id?: string | null
+          direction?: string
+          type?: string
+          content?: string | null
+          media_url?: string | null
+          intent?: string | null
+          sent_by_ai?: boolean
+          status?: string
+          wa_timestamp?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "wa_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_bulk_jobs: {
+        Row: {
+          id: string
+          business_id: string
+          name: string
+          message: string
+          filter_type: string
+          filter_value: string | null
+          status: string
+          total_count: number
+          sent_count: number
+          delivered_count: number
+          failed_count: number
+          scheduled_at: string | null
+          completed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          name: string
+          message: string
+          filter_type?: string
+          filter_value?: string | null
+          status?: string
+          total_count?: number
+          sent_count?: number
+          delivered_count?: number
+          failed_count?: number
+          scheduled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          name?: string
+          message?: string
+          filter_type?: string
+          filter_value?: string | null
+          status?: string
+          total_count?: number
+          sent_count?: number
+          delivered_count?: number
+          failed_count?: number
+          scheduled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      wa_bulk_job_items: {
+        Row: {
+          id: string
+          job_id: string
+          business_id: string
+          contact_id: string
+          phone: string
+          name: string | null
+          status: string
+          wa_message_id: string | null
+          error_msg: string | null
+          sent_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          job_id: string
+          business_id: string
+          contact_id: string
+          phone: string
+          name?: string | null
+          status?: string
+          wa_message_id?: string | null
+          error_msg?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          job_id?: string
+          business_id?: string
+          contact_id?: string
+          phone?: string
+          name?: string | null
+          status?: string
+          wa_message_id?: string | null
+          error_msg?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      wa_followup_rules: {
+        Row: {
+          id: string
+          business_id: string
+          name: string
+          trigger_event: string
+          trigger_condition: Json
+          delay_hours: number
+          message_template: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          name: string
+          trigger_event: string
+          trigger_condition?: import('./types').Json
+          delay_hours?: number
+          message_template: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          name?: string
+          trigger_event?: string
+          trigger_condition?: import('./types').Json
+          delay_hours?: number
+          message_template?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wa_followup_instances: {
+        Row: {
+          id: string
+          rule_id: string | null
+          business_id: string
+          contact_id: string | null
+          phone: string
+          name: string | null
+          message: string
+          scheduled_at: string
+          status: string
+          sent_at: string | null
+          wa_message_id: string | null
+          error_msg: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          rule_id?: string | null
+          business_id: string
+          contact_id?: string | null
+          phone: string
+          name?: string | null
+          message: string
+          scheduled_at?: string
+          status?: string
+          sent_at?: string | null
+          wa_message_id?: string | null
+          error_msg?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          rule_id?: string | null
+          business_id?: string
+          contact_id?: string | null
+          phone?: string
+          name?: string | null
+          message?: string
+          scheduled_at?: string
+          status?: string
+          sent_at?: string | null
+          wa_message_id?: string | null
+          error_msg?: string | null
+          created_at?: string
         }
         Relationships: []
       }

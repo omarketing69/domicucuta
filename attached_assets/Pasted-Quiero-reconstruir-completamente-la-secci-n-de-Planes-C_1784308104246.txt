@@ -1,0 +1,256 @@
+Quiero reconstruir completamente la sección de Planes Comerciales de WhatsOrder.
+
+La filosofía de venta cambia completamente.
+
+No quiero vender funciones.
+
+Quiero vender resultados.
+
+El producto ya no debe presentarse como un Catálogo Digital con IA.
+
+Debe presentarse como:
+
+Centro de Ventas con IA Subtítulo:
+
+"El empleado comercial inteligente que trabaja 24 horas para atraer clientes, vender más, recuperar ventas perdidas y fidelizar compradores mientras tú administras tu negocio."
+
+El lenguaje debe ser completamente orientado a beneficios para restaurantes, cafeterías, comidas rápidas, tiendas online y pequeños negocios.
+
+No utilizar lenguaje técnico.
+
+No mencionar APIs excepto cuando sea necesario explicar el beneficio del Plan Pro.
+
+PLAN DEMO (GRATIS) Duración:
+
+30 días.
+
+Objetivo:
+
+Que el cliente pruebe toda la experiencia del Centro de Ventas con IA sin necesidad de conocimientos técnicos.
+
+Debe incluir:
+
+Centro de Ventas con IA Tu negocio contará con un vendedor inteligente disponible las 24 horas que conversa con tus clientes, responde preguntas, recomienda productos y ayuda a cerrar más ventas incluso mientras estás ocupado.
+
+Menú Digital Multicanal Un único enlace para compartir en WhatsApp, Facebook, Instagram, Google o cualquier red social.
+
+No necesitas crear diferentes catálogos.
+
+Productos ilimitados Agrega todos los productos que quieras.
+
+Con fotografías.
+
+Descripciones.
+
+Precios.
+
+Variantes.
+
+Categorías.
+
+Código QR para mesas Tus clientes escanean el código y realizan sus pedidos directamente desde su celular.
+
+Disminuye tiempos de atención.
+
+Agente IA que vende por ti La Inteligencia Artificial responde automáticamente.
+
+Sugiere productos.
+
+Hace venta cruzada.
+
+Resuelve preguntas frecuentes.
+
+Ayuda al cliente durante todo el proceso de compra.
+
+Director Comercial con IA No es un CRM tradicional.
+
+Es un asistente comercial inteligente que:
+
+interpreta las conversaciones,
+
+identifica oportunidades,
+
+calcula la probabilidad de compra,
+
+aprende los gustos del cliente,
+
+recuerda su historial,
+
+propone acciones para aumentar las ventas,
+
+y organiza automáticamente las prioridades comerciales.
+
+Centro Inteligente de Pedidos Controla automáticamente el recorrido completo del pedido.
+
+Desde que el cliente compra hasta que recibe el pedido.
+
+Visualiza tiempos estimados.
+
+Detecta retrasos.
+
+Ayuda a cumplir las promesas de entrega.
+
+Dashboard Comercial Visualiza las ventas.
+
+Los clientes más importantes.
+
+Las oportunidades.
+
+Los productos más consultados.
+
+Las recomendaciones de la IA.
+
+Todo desde un solo lugar.
+
+Al finalizar el período Demo el cliente podrá continuar utilizando exactamente la misma plataforma contratando el Plan Starter.
+
+No pierde información.
+
+No pierde clientes.
+
+No pierde pedidos.
+
+PLAN STARTER Texto principal:
+
+Todo lo del Plan Demo sin límite de tiempo.
+
+Ideal para restaurantes, cafeterías, comidas rápidas, tiendas online y pequeños negocios que desean automatizar sus ventas sin depender de integraciones con WhatsApp Business API.
+
+Debe incluir absolutamente todo lo del Plan Demo.
+
+Agregar además:
+
+Uso permanente.
+
+Actualizaciones continuas.
+
+Historial completo de clientes.
+
+Historial de pedidos.
+
+Estadísticas comerciales.
+
+Aprendizaje continuo de la IA.
+
+Soporte.
+
+El enfoque debe dejar claro que este plan será suficiente para la mayoría de pequeños negocios.
+
+No mencionar limitaciones técnicas.
+
+No decir que "no tiene API".
+
+Simplemente decir que las campañas masivas y el marketing automatizado pertenecen al Plan Pro.
+
+PLAN PRO Texto principal:
+
+Convierte tu Centro de Ventas con IA en una máquina automática de fidelización y remarketing.
+
+Debe incluir absolutamente todo lo del Plan Starter.
+
+Agregar:
+
+Campañas Inteligentes Envía promociones únicamente a los clientes con mayor probabilidad de compra.
+
+No desperdicies mensajes.
+
+La IA identifica a quién contactar.
+
+Remarketing Automático Recupera clientes que abandonaron el carrito.
+
+Reactiva clientes inactivos.
+
+Invita nuevamente a quienes no compran hace semanas.
+
+Todo de forma automática.
+
+Segmentación Inteligente Envía campañas según:
+
+Clientes frecuentes.
+
+Clientes VIP.
+
+Clientes nuevos.
+
+Clientes inactivos.
+
+Clientes con cumpleaños.
+
+Clientes que prefieren ciertos productos.
+
+Clientes con alta probabilidad de compra.
+
+Promociones Automáticas La IA recomienda el mejor momento para lanzar promociones.
+
+Aumenta la probabilidad de venta.
+
+Reduce el desperdicio de campañas.
+
+Integración Oficial con WhatsApp Utiliza la API oficial para automatizar campañas de marketing, promociones y seguimiento de clientes de forma profesional y escalable.
+
+No entrar en detalles técnicos.
+
+Hablar únicamente del beneficio para el negocio.
+
+Automatización Comercial Avanzada El Centro de Ventas con IA no solo conversa con los clientes.
+
+También puede ejecutar campañas de fidelización y recuperación de ventas automáticamente utilizando WhatsApp Business.
+
+MENSAJE PRINCIPAL DE TODA LA PÁGINA No quiero que la página transmita la sensación de vender un software.
+
+Quiero que transmita que el cliente está contratando un nuevo empleado para su negocio.
+
+El mensaje principal debe ser:
+
+"Contrata un vendedor inteligente que nunca duerme."
+
+TONO Moderno.
+
+Profesional.
+
+Muy fácil de entender.
+
+Sin lenguaje técnico.
+
+Enfatizar ahorro de tiempo.
+
+Más ventas.
+
+Más clientes.
+
+Mayor fidelización.
+
+Más pedidos.
+
+Menos trabajo manual.
+
+DIFERENCIADOR En toda la página debe quedar claro que WhatsOrder no es simplemente un menú digital.
+
+No es un chatbot.
+
+No es un CRM.
+
+Es un Centro de Ventas con IA que combina:
+
+• Menú Digital Inteligente.
+
+• Agente IA que vende por ti.
+
+• Director Comercial con IA que interpreta conversaciones, detecta oportunidades, recuerda el historial del cliente, aprende sus gustos, propone acciones concretas y organiza automáticamente las tareas comerciales para ayudarte a vender más.
+
+• Centro Inteligente de Pedidos que controla el flujo completo de cada pedido desde que entra hasta que el cliente lo recibe, supervisando tiempos, estados y cumplimiento de las promesas de entrega.
+
+El objetivo final es que el visitante entienda que no está comprando un software, sino incorporando un miembro más a su equipo: un vendedor, un asesor comercial y un supervisor operativo que trabajan 24 horas al día para hacer crecer su negocio.
+
+Una recomendación estratégica adicional Hay un último cambio que creo que aumentará mucho la conversión de la página de precios: elimina los nombres tradicionales "Demo", "Starter" y "Pro" como elemento principal. Déjalos como una referencia secundaria, pero vende el resultado.
+
+Por ejemplo:
+
+🚀 Empieza Gratis (Plan Demo)
+
+📈 Haz Crecer tu Negocio (Plan Starter)
+
+🤖 Automatiza y Escala tus Ventas (Plan Pro)
+
+Un dueño de restaurante se identifica más con el objetivo que quiere lograr que con un nombre técnico de plan. Eso hace que la decisión de compra sea mucho más intuitiva y emocional.
+

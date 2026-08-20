@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ExternalLink, Zap, Crown, Sparkles, Plus, RefreshCw, MoreHorizontal, KeyRound, UserPlus } from 'lucide-react';
+import { ExternalLink, Zap, Crown, Sparkles, Plus, RefreshCw, MoreHorizontal, KeyRound, UserPlus, Trash2 } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 import CreateBusinessDialog from './CreateBusinessDialog';
 import EditCredentialsDialog from './EditCredentialsDialog';
@@ -13,6 +13,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
 type Business = Database['public']['Tables']['businesses']['Row'];
@@ -34,6 +44,8 @@ export default function SuperAdminBusinesses() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editCreds, setEditCreds] = useState<{ biz: Business } | null>(null);
   const [assignOwner, setAssignOwner] = useState<{ biz: Business } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Business | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -71,6 +83,20 @@ export default function SuperAdminBusinesses() {
     await supabase.from('businesses').update({ plan }).eq('id', id);
     setBusinesses(prev => prev.map(b => b.id === id ? { ...b, plan } : b));
     toast.success(`Plan cambiado a ${plan}`);
+  };
+
+  const deleteBusiness = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    const { error } = await supabase.from('businesses').delete().eq('id', deleteConfirm.id);
+    setDeleting(false);
+    if (error) {
+      toast.error('Error al eliminar: ' + error.message);
+    } else {
+      setBusinesses(prev => prev.filter(b => b.id !== deleteConfirm.id));
+      toast.success(`"${deleteConfirm.name}" eliminado`);
+      setDeleteConfirm(null);
+    }
   };
 
   if (loading) return <div className="text-muted-foreground text-sm">Cargando negocios...</div>;
@@ -206,6 +232,13 @@ export default function SuperAdminBusinesses() {
                           <DropdownMenuItem onClick={() => changePlan(biz.id, 'pro')}>
                             Cambiar a Pro
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleteConfirm(biz)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Eliminar negocio
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -244,6 +277,27 @@ export default function SuperAdminBusinesses() {
           onSuccess={load}
         />
       )}
+
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(v) => { if (!v) setDeleteConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar "{deleteConfirm?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción es <strong>permanente e irreversible</strong>. Se eliminarán todos los datos del negocio: categorías, productos, toppings y pedidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteBusiness}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

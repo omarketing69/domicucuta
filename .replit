@@ -1,0 +1,63 @@
+modules = ["nodejs-20", "web", "python-3.11", "postgresql-16"]
+[agent]
+expertMode = true
+integrations = ["javascript_database:1.0.0"]
+
+[nix]
+channel = "stable-25_05"
+
+[deployment]
+deploymentTarget = "static"
+run = ["node", "./dist/index.cjs"]
+build = ["npm", "run", "build"]
+publicDir = "dist"
+[[deployment.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 3001
+externalPort = 3002
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
+
+[[ports]]
+localPort = 23636
+externalPort = 3001
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://khhxcruhhhzuuykfeivd.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtoaHhjcnVoaGh6dXV5a2ZlaXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzA3NjcsImV4cCI6MjA4OTI0Njc2N30.RoALBCT3HpNSkBGl4NsdML0H1qYwI5uqIM32jWIyBnY"
+VITE_SUPABASE_PROJECT_ID = "khhxcruhhhzuuykfeivd"

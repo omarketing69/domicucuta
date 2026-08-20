@@ -1,1 +1,4 @@
-project_id = "wyvimpxwgttscujomkyo"
+project_id = "khhxcruhhhzuuykfeivd"
+
+[functions.menu-agent]
+verify_jwt = false
