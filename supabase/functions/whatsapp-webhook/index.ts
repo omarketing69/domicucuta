@@ -1,39 +1,16 @@
-/**
- * ai-agent v2 — Supabase Edge Function
- *
- * Omnichannel AI auto-reply with:
- *   - Configurable model (per business)
- *   - Knowledge base injection
- *   - Flow node matching (keyword + intent)
- *   - Handoff-to-human detection
- *   - Real business hours enforcement (off_hours mode)
- *   - WhatsApp / Instagram / Messenger send
+**
+ * meta-webhook (was whatsapp-webhook) — Supabase Edge Function v10
+ * Handles WhatsApp, Instagram DM, and Facebook Messenger in one endpoint.
  *
  * Required secrets:
- *   GROQ_API_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL (auto)
- *   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID (global WA fallback)
+ *   WHATSAPP_VERIFY_TOKEN  — verify token registered in Meta for Developers
+ *   WHATSAPP_APP_SECRET    — App Secret for HMAC-SHA256 signature verification
+ *   WHATSAPP_TOKEN         — global fallback WA permanent access token
+ *   WHATSAPP_PHONE_ID      — global fallback WA Phone Number ID
+ *   OPENROUTER_API_KEY     — optional; AI features disabled if absent
  */
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { cacheGet, cacheSet } from '../_shared/cache.ts';
-
-const META_API_VERSION = 'v19.0';
-
-// Free tier: Qwen3.6-27B on Groq (every Groq model is free-tier, gated only by
-// rate limits). Paid tier: Kimi K2.6 via OpenRouter, gated to Pro-plan
-// businesses that opt in via ai_model = 'kimi-k2.6', with a silent fallback
-// to the free Qwen/Groq path on any failure.
-const DEFAULT_MODEL  = 'qwen/qwen3.6-27b';
-const FALLBACK_MODEL = 'llama-3.1-8b-instant';
-const KIMI_MODEL_SENTINEL = 'kimi-k2.6';
-const OPENROUTER_MODEL = 'moonshotai/kimi-k2.6'; // verify exact OpenRouter slug at deploy time
-const PLAN_RANK: Record<string, number> = { free: 0, starter: 1, pro: 2 };
-
-const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
-const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-
-const BUSINESS_CACHE_TTL_MS = 60_000;
-const MENU_CACHE_TTL_MS = 90_000;
+import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,8 +18,225 @@ const corsHeaders = {
 };
 
 type Channel = 'whatsapp' | 'instagram' | 'messenger';
+type Db = SupabaseClient;
 
-interface AgentRequest {
+const supabaseAdmin = () => createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
+
+// Fire-and-forget a promise without blocking the response, while still letting
+// it finish after the response is sent (Supabase's Edge Runtime keeps the
+// isolate alive for work registered via waitUntil; without it a background
+// promise can get cut off once the response goes out).
+function backgroundTask(promise: Promise<unknown>): void {
+  // deno-lint-ignore no-explicit-any
+  const rt = (globalThis as any).EdgeRuntime;
+  if (rt?.waitUntil) {
+    rt.waitUntil(promise);
+  } else {
+    promise.catch(() => {});
+  }
+}
+
+// ── Signature verification ─────────────────────────────────────────────────────
+
+async function verifyMetaSignature(
+  rawBody: ArrayBuffer,
+  signatureHeader: string | null,
+  appSecret: string,
+): Promise<boolean> {
+  if (!signatureHeader?.startsWith('sha256=')) return false;
+  const expected = signatureHeader.slice('sha256='.length);
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(appSecret),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, rawBody);
+  const actual = Array.from(new Uint8Array(sig))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  if (actual.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < actual.length; i++) diff |= actual.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
+
+// ── Contact / Conversation upserts (channel-aware) ────────────────────────────
+
+async function upsertContact(
+  db: Db,
+  businessId: string,
+  opts: {
+    phone?: string | null;
+    external_id?: string | null;
+    name: string | null;
+    channel: Channel;
+  },
+): Promise<{ id: string; score: number }> {
+  // Build lookup filter based on channel
+  let existingQ = db.from('wa_contacts').select('id, score')
+    .eq('business_id', businessId)
+    .eq('channel', opts.channel);
+
+  if (opts.channel === 'whatsapp' && opts.phone) {
+    existingQ = existingQ.eq('phone', opts.phone);
+  } else if (opts.external_id) {
+    existingQ = existingQ.eq('external_id', opts.external_id);
+  } else {
+    // Fallback: no unique identifier, skip
+    return { id: '', score: 0 };
+  }
+
+  const { data: existing } = await existingQ.maybeSingle();
+
+  if (existing) {
+    const newScore = (existing.score ?? 0) + 1;
+    await db.from('wa_contacts').update({
+      ...(opts.name ? { name: opts.name } : {}),
+      last_interaction_at: new Date().toISOString(),
+      score: newScore,
+    }).eq('id', existing.id);
+    return { id: existing.id as string, score: newScore };
+  }
+
+  const insertData: Record<string, unknown> = {
+    business_id: businessId,
+    channel: opts.channel,
+    name: opts.name ?? (opts.phone ?? opts.external_id ?? 'Unknown'),
+    last_interaction_at: new Date().toISOString(),
+    score: 1,
+  };
+  if (opts.phone)       insertData.phone       = opts.phone;
+  if (opts.external_id) insertData.external_id = opts.external_id;
+
+  const { data: created } = await db.from('wa_contacts')
+    .insert(insertData).select('id').single();
+
+  return { id: created!.id as string, score: 1 };
+}
+
+async function upsertConversation(
+  db: Db,
+  businessId: string,
+  contactId: string,
+  channel: Channel,
+): Promise<string> {
+  const { data: existing } = await db.from('wa_conversations')
+    .select('id, unread_count')
+    .eq('business_id', businessId)
+    .eq('contact_id', contactId)
+    .eq('channel', channel)
+    .maybeSingle();
+
+  if (existing) {
+    await db.from('wa_conversations').update({
+      status: 'open',
+      unread_count: (existing.unread_count ?? 0) + 1,
+      last_message_at: new Date().toISOString(),
+    }).eq('id', existing.id);
+    return existing.id as string;
+  }
+
+  const { data: created } = await db.from('wa_conversations').insert({
+    business_id: businessId,
+    contact_id: contactId,
+    channel,
+    status: 'open',
+    unread_count: 1,
+    last_message_at: new Date().toISOString(),
+  }).select('id').single();
+
+  return created!.id as string;
+}
+
+// ── Content extraction ─────────────────────────────────────────────────────────
+
+function extractWaMessageContent(msg: Record<string, unknown>): {
+  type: string; content: string | null; mediaUrl: string | null;
+} {
+  const type = (msg.type as string) ?? 'unknown';
+  if (type === 'text') {
+    const text = msg.text as { body?: string } | undefined;
+    return { type: 'text', content: text?.body ?? null, mediaUrl: null };
+  }
+  if (['image', 'audio', 'video', 'document', 'sticker'].includes(type)) {
+    const media = msg[type] as { id?: string; caption?: string } | undefined;
+    return { type, content: media?.caption ?? null, mediaUrl: media?.id ?? null };
+  }
+  if (type === 'location') {
+    const loc = msg.location as { latitude?: number; longitude?: number } | undefined;
+    return { type: 'location', content: `${loc?.latitude},${loc?.longitude}`, mediaUrl: null };
+  }
+  return { type: 'unknown', content: null, mediaUrl: null };
+}
+
+function extractSocialMessageContent(msg: Record<string, unknown>): {
+  type: string; content: string | null; mediaUrl: string | null;
+} {
+  if (msg.text && typeof msg.text === 'string') {
+    return { type: 'text', content: msg.text, mediaUrl: null };
+  }
+  const attachments = msg.attachments as Array<{ type?: string; payload?: { url?: string } }> | undefined;
+  if (attachments?.length) {
+    const att = attachments[0];
+    const attType = att.type ?? 'unknown';
+    const mediaUrl = att.payload?.url ?? null;
+    return { type: attType, content: null, mediaUrl };
+  }
+  return { type: 'unknown', content: null, mediaUrl: null };
+}
+
+// ── AI: Intent classification ─────────────────────────────────────────────────
+
+const VALID_INTENTS = ['order', 'inquiry', 'complaint', 'follow_up', 'other'];
+type Intent = 'order' | 'inquiry' | 'complaint' | 'follow_up' | 'other';
+const INTENT_SCORE_BONUS: { [key: string]: number } = {
+  order: 5, inquiry: 1, complaint: -2, follow_up: 3, other: 0,
+};
+
+async function classifyIntent(content: string): Promise<{ intent: Intent; scoreBonus: number }> {
+  const apiKey = Deno.env.get('OPENROUTER_API_KEY');
+  if (!apiKey) return { intent: 'other', scoreBonus: 0 };
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://domicircuspop.replit.app',
+        'X-Title': 'DomiCircusPop Webhook',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        max_tokens: 10,
+        temperature: 0,
+        messages: [
+          {
+            role: 'system',
+            content: `Classify the user message into one of these categories. Reply with ONLY the category name, lowercase, nothing else:
+- order: wants to place an order or buy something
+- inquiry: asking about products, prices, hours, availability
+- complaint: expressing dissatisfaction or reporting a problem
+- follow_up: following up on a previous order or request
+- other: anything else`,
+          },
+          { role: 'user', content: content.slice(0, 500) },
+        ],
+      }),
+    });
+    if (!res.ok) return { intent: 'other', scoreBonus: 0 };
+    const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const raw = data.choices?.[0]?.message?.content?.trim().toLowerCase() ?? 'other';
+    const intent = VALID_INTENTS.includes(raw) ? (raw as Intent) : 'other';
+    return { intent, scoreBonus: INTENT_SCORE_BONUS[intent] ?? 0 };
+  } catch {
+    return { intent: 'other', scoreBonus: 0 };
+  }
+}
+
+// ── AI: Trigger ai-agent (all channels) ───────────────────────────────────────
+
+async function triggerAiAgent(params: {
   business_id:          string;
   conversation_id:      string;
   contact_phone:        string | null;
@@ -51,502 +245,318 @@ interface AgentRequest {
   contact_id:           string;
   channel:              Channel;
   intent?:              string | null;
-}
-
-interface KnowledgeItem {
-  id:      string;
-  type:    'faq' | 'policy' | 'info';
-  title:   string;
-  content: string;
-}
-
-interface DayHours { open: string; close: string }
-interface OperatingHours {
-  timezone?: string;
-  mon?: DayHours | null; tue?: DayHours | null; wed?: DayHours | null;
-  thu?: DayHours | null; fri?: DayHours | null; sat?: DayHours | null;
-  sun?: DayHours | null;
-}
-
-function supabaseAdmin() {
-  return createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-}
-
-// ── Operating hours ────────────────────────────────────────────────────────────
-
-function isWithinBusinessHours(hours: OperatingHours): boolean {
-  const tz  = hours.timezone ?? 'America/Bogota';
-  const now = new Date();
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
-  });
-  const parts   = fmt.formatToParts(now);
-  const weekday = parts.find(p => p.type === 'weekday')?.value?.toLowerCase().slice(0, 3) ?? '';
-  const hStr    = parts.find(p => p.type === 'hour')?.value   ?? '0';
-  const mStr    = parts.find(p => p.type === 'minute')?.value ?? '0';
-  const cur     = parseInt(hStr) * 60 + parseInt(mStr);
-
-  const dayHours = hours[weekday as keyof OperatingHours] as DayHours | null | undefined;
-  if (!dayHours) return false;
-  const [oH, oM] = dayHours.open.split(':').map(Number);
-  const [cH, cM] = dayHours.close.split(':').map(Number);
-  return cur >= oH * 60 + oM && cur < cH * 60 + cM;
-}
-
-// ── Prompt building ────────────────────────────────────────────────────────────
-
-function buildKnowledgeContext(items: KnowledgeItem[]): string {
-  if (!items?.length) return '';
-  const lines: string[] = ['\n=== INFORMACIÓN DEL NEGOCIO ==='];
-  for (const item of items) {
-    if (item.type === 'faq') {
-      lines.push(`\nP: ${item.title}\nR: ${item.content}`);
-    } else {
-      lines.push(`\n${item.title}:\n${item.content}`);
-    }
-  }
-  return lines.join('\n');
-}
-
-async function buildMenuContext(db: ReturnType<typeof supabaseAdmin>, businessId: string): Promise<string> {
-  const cacheKey = `menu:${businessId}`;
-  const cached = cacheGet<string>(cacheKey);
-  if (cached !== undefined) return cached;
-
-  const [{ data: categories }, { data: products }] = await Promise.all([
-    db.from('categories').select('id, name').eq('business_id', businessId).eq('is_active', true).order('sort_order'),
-    db.from('products').select('name, description, price, category_id').eq('business_id', businessId).eq('is_active', true).order('name'),
-  ]);
-  if (!categories?.length && !products?.length) {
-    cacheSet(cacheKey, '', MENU_CACHE_TTL_MS);
-    return '';
-  }
-
-  const catMap: Record<string, string> = {};
-  for (const c of categories ?? []) catMap[c.id] = c.name;
-
-  const byCat: Record<string, typeof products> = {};
-  for (const p of products ?? []) {
-    const cat = catMap[p.category_id] ?? 'Sin categoría';
-    if (!byCat[cat]) byCat[cat] = [];
-    byCat[cat]!.push(p);
-  }
-
-  const lines: string[] = ['\n=== MENÚ DEL NEGOCIO ==='];
-  for (const [cat, prods] of Object.entries(byCat)) {
-    lines.push(`\n${cat}:`);
-    for (const p of prods ?? []) {
-      const price = p.price != null ? ` — $${p.price.toLocaleString('es-CO')}` : '';
-      const desc  = p.description ? ` (${p.description})` : '';
-      lines.push(`  • ${p.name}${price}${desc}`);
-    }
-  }
-  const result = lines.join('\n');
-  cacheSet(cacheKey, result, MENU_CACHE_TTL_MS);
-  return result;
-}
-
-async function getHistory(
-  db: ReturnType<typeof supabaseAdmin>,
-  conversationId: string,
-): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
-  const { data } = await db
-    .from('wa_messages').select('direction, content')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: false }).limit(12);
-  if (!data) return [];
-  return data.reverse().filter(m => m.content).map(m => ({
-    role: m.direction === 'inbound' ? 'user' : 'assistant',
-    content: m.content!,
-  }));
-}
-
-// ── Flow node matching ─────────────────────────────────────────────────────────
-
-async function matchFlowNode(
-  db: ReturnType<typeof supabaseAdmin>,
-  businessId: string,
-  message: string,
-  intent: string | null | undefined,
-): Promise<{ id: string; name: string; response_template: string } | null> {
-  const { data: nodes } = await db
-    .from('ai_flow_nodes')
-    .select('id, name, trigger_keywords, trigger_intent, response_template')
-    .eq('business_id', businessId).eq('is_active', true).order('sort_order');
-  if (!nodes?.length) return null;
-
-  const lower = message.toLowerCase();
-  for (const node of nodes) {
-    if (node.trigger_keywords?.length) {
-      const hit = node.trigger_keywords.some((kw: string) => lower.includes(kw.toLowerCase().trim()));
-      if (hit) return { id: node.id, name: node.name, response_template: node.response_template };
-    }
-    if (node.trigger_intent && intent && node.trigger_intent === intent) {
-      return { id: node.id, name: node.name, response_template: node.response_template };
-    }
-  }
-  return null;
-}
-
-function detectsHandoff(message: string, keywords: string[]): boolean {
-  if (!keywords?.length) return false;
-  const lower = message.toLowerCase();
-  return keywords.some(kw => lower.includes(kw.toLowerCase().trim()));
-}
-
-// ── Model/provider resolution ─────────────────────────────────────────────────
-
-interface ModelAttempt {
-  endpoint: string;
-  apiKey: string;
-  model: string;
-  extraHeaders?: Record<string, string>;
-  timeoutMs: number;
-}
-
-function buildAttempts(business: { ai_model?: string | null; plan?: string | null }): ModelAttempt[] {
-  const groqKey = Deno.env.get('GROQ_API_KEY')!;
-  const groqAttempt = (model: string, timeoutMs: number): ModelAttempt => ({
-    endpoint: GROQ_ENDPOINT, apiKey: groqKey, model, timeoutMs,
-  });
-
-  const planRank = PLAN_RANK[business.plan ?? 'free'] ?? 0;
-  const wantsKimi = business.ai_model === KIMI_MODEL_SENTINEL;
-  const openRouterKey = Deno.env.get('OPENROUTER_API_KEY');
-
-  if (wantsKimi && planRank >= PLAN_RANK['pro'] && openRouterKey) {
-    return [
-      {
-        endpoint: OPENROUTER_ENDPOINT,
-        apiKey: openRouterKey,
-        model: OPENROUTER_MODEL,
-        extraHeaders: { 'HTTP-Referer': 'https://domicircuspop.replit.app', 'X-Title': 'DomiCircusPop AI Agent' },
-        timeoutMs: 9_000,
+}): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceKey) return;
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/ai-agent`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
       },
-      groqAttempt(DEFAULT_MODEL, 6_000), // degrade to free Qwen if Kimi/OpenRouter fails
-    ];
+      body: JSON.stringify(params),
+    });
+  } catch (e) {
+    console.warn('[webhook] ai-agent call failed:', e);
   }
-
-  const primaryModel = (business.ai_model && business.ai_model !== KIMI_MODEL_SENTINEL)
-    ? business.ai_model
-    : DEFAULT_MODEL;
-  return [groqAttempt(primaryModel, 8_000), groqAttempt(FALLBACK_MODEL, 6_000)];
 }
 
-// ── LLM call ────────────────────────────────────────────────────────────────────
+// ── WhatsApp entry processor ──────────────────────────────────────────────────
 
-async function generateReply(
-  business: { ai_model?: string | null; plan?: string | null },
-  systemPrompt: string,
-  history: Array<{ role: 'user' | 'assistant'; content: string }>,
-  lastMessage: string,
-): Promise<string | null> {
-  if (!Deno.env.get('GROQ_API_KEY')) { console.warn('[ai-agent] GROQ_API_KEY not set'); return null; }
+async function processWhatsAppEntries(
+  db: Db,
+  body: Record<string, unknown>,
+): Promise<void> {
+  const entries = (body.entry as Record<string, unknown>[]) ?? [];
 
-  const msgs = [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: lastMessage }];
-  const attempts = buildAttempts(business);
+  for (const entry of entries) {
+    const changes = (entry.changes as Record<string, unknown>[]) ?? [];
+    for (const change of changes) {
+      if (change.field !== 'messages') continue;
+      const value = change.value as Record<string, unknown>;
+      const metadata = value.metadata as { phone_number_id?: string } | undefined;
+      const phoneNumberId = metadata?.phone_number_id;
+      if (!phoneNumberId) continue;
 
-  for (const attempt of attempts) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), attempt.timeoutMs);
-    try {
-      const res = await fetch(attempt.endpoint, {
-        method: 'POST',
-        signal: ctrl.signal,
-        headers: {
-          'Authorization': `Bearer ${attempt.apiKey}`,
-          'Content-Type': 'application/json',
-          ...(attempt.extraHeaders ?? {}),
-        },
-        body: JSON.stringify({ model: attempt.model, max_tokens: 500, temperature: 0.5, messages: msgs }),
-      });
-      if (!res.ok) {
-        console.error(`[ai-agent] ${attempt.model} error:`, res.status, (await res.text()).slice(0, 200));
+      const { data: business } = await db.from('businesses')
+        .select('id, ai_enabled, ai_auto_reply_mode')
+        .eq('wa_phone_number_id', phoneNumberId)
+        .maybeSingle();
+
+      if (!business) {
+        console.warn('[webhook] No WA business for phone_number_id:', phoneNumberId);
         continue;
       }
-      const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-      const content = data.choices?.[0]?.message?.content?.trim() ?? null;
-      if (content) return content;
-    } catch (e) {
-      console.error(`[ai-agent] ${attempt.model} threw:`, e);
-    } finally {
-      clearTimeout(timer);
+
+      const contacts = (value.contacts as Record<string, unknown>[]) ?? [];
+      const messages = (value.messages as Record<string, unknown>[]) ?? [];
+      const contactMap: Record<string, string> = {};
+      for (const c of contacts) {
+        const waId = c.wa_id as string;
+        const profile = c.profile as { name?: string } | undefined;
+        contactMap[waId] = profile?.name ?? waId;
+      }
+
+      for (const msg of messages) {
+        const waMessageId = msg.id as string;
+        const from        = msg.from as string;
+        const tsRaw       = msg.timestamp as string | number;
+        const waTs        = new Date(Number(tsRaw) * 1000).toISOString();
+
+        const { data: dup } = await db.from('wa_messages')
+          .select('id').eq('wa_message_id', waMessageId).maybeSingle();
+        if (dup) continue;
+
+        const contactName = contactMap[from] ?? null;
+        const { id: contactId, score: contactScore } = await upsertContact(db, business.id, {
+          phone: from, name: contactName, channel: 'whatsapp',
+        });
+        if (!contactId) continue;
+
+        const convId = await upsertConversation(db, business.id, contactId, 'whatsapp');
+        const { type, content, mediaUrl } = extractWaMessageContent(msg as Record<string, unknown>);
+
+        const { data: savedMsg } = await db.from('wa_messages').insert({
+          business_id:     business.id,
+          conversation_id: convId,
+          contact_id:      contactId,
+          wa_message_id:   waMessageId,
+          channel:         'whatsapp',
+          direction:       'inbound',
+          type,
+          content,
+          media_url:       mediaUrl,
+          status:          'delivered',
+          wa_timestamp:    waTs,
+        }).select('id').single();
+
+        if (savedMsg && type === 'text' && content) {
+          const aiEnabled   = (business as Record<string, unknown>).ai_enabled as boolean | undefined;
+          const aiReplyMode = (business as Record<string, unknown>).ai_auto_reply_mode as string | undefined;
+          if (aiEnabled && aiReplyMode && aiReplyMode !== 'disabled') {
+            await triggerAiAgent({
+              business_id: business.id, conversation_id: convId,
+              contact_phone: from, contact_external_id: null,
+              last_message_content: content, contact_id: contactId,
+              channel: 'whatsapp', intent: null,
+            });
+          }
+          // Intent classification (an extra LLM round trip) only feeds an
+          // optional trigger_intent flow-node match and a CRM score bump —
+          // neither the reply above needs it, so it runs in the background
+          // instead of blocking every inbound message on a second LLM call.
+          backgroundTask(
+            classifyIntent(content).then(async ({ intent, scoreBonus }) => {
+              await db.from('wa_messages').update({ intent }).eq('id', savedMsg.id);
+              if (scoreBonus !== 0) {
+                const newScore = Math.max(0, contactScore + scoreBonus);
+                await db.from('wa_contacts').update({ score: newScore }).eq('id', contactId);
+              }
+            }).catch(e => console.warn('[webhook] background classifyIntent failed:', e)),
+          );
+        }
+      }
+
+      // Delivery/read status updates
+      const statuses = (value.statuses as Record<string, unknown>[]) ?? [];
+      for (const s of statuses) {
+        const waId  = s.id as string;
+        const state = s.status as string;
+        if (['delivered', 'read', 'failed'].includes(state)) {
+          await db.from('wa_messages').update({ status: state }).eq('wa_message_id', waId);
+          if (state === 'delivered' || state === 'read') {
+            const { data: bulkItem } = await db.from('wa_bulk_job_items')
+              .select('id, job_id, status').eq('wa_message_id', waId).maybeSingle();
+            if (bulkItem && bulkItem.status !== 'delivered') {
+              await db.from('wa_bulk_job_items').update({ status: 'delivered' }).eq('id', bulkItem.id);
+              const { data: parentJob } = await db.from('wa_bulk_jobs')
+                .select('delivered_count').eq('id', bulkItem.job_id).maybeSingle();
+              if (parentJob) {
+                await db.from('wa_bulk_jobs')
+                  .update({ delivered_count: (parentJob.delivered_count ?? 0) + 1 })
+                  .eq('id', bulkItem.job_id);
+              }
+            }
+          }
+        }
+      }
     }
   }
-  return null;
 }
 
-// ── Send via channel ───────────────────────────────────────────────────────────
+// ── Instagram DM / Messenger entry processor ──────────────────────────────────
 
-async function sendReply(
-  channel: Channel,
-  recipientId: string,
-  message: string,
-  biz: Record<string, unknown>,
-): Promise<string | null> {
-  if (channel === 'whatsapp') {
-    const phoneId = (biz.wa_phone_number_id as string | null) ?? Deno.env.get('WHATSAPP_PHONE_ID');
-    const token   = (biz.wa_access_token   as string | null) ?? Deno.env.get('WHATSAPP_TOKEN');
-    if (!phoneId || !token) return null;
-    const res = await fetch(`https://graph.facebook.com/${META_API_VERSION}/${phoneId}/messages`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messaging_product: 'whatsapp', to: recipientId, type: 'text', text: { body: message } }),
-    });
-    if (!res.ok) { console.error('[ai-agent] WA send error:', await res.json()); return null; }
-    const d = await res.json() as { messages?: Array<{ id: string }> };
-    return d.messages?.[0]?.id ?? null;
+async function processSocialEntries(
+  db: Db,
+  body: Record<string, unknown>,
+  channel: 'instagram' | 'messenger',
+): Promise<void> {
+  const entries = (body.entry as Record<string, unknown>[]) ?? [];
+  const pageField = channel === 'instagram' ? 'ig_page_id' : 'fb_page_id';
+
+  for (const entry of entries) {
+    const pageId  = entry.id as string;
+    if (!pageId) continue;
+
+    // Find business by IG/FB page ID
+    const { data: business } = await db.from('businesses')
+      .select('id, ai_enabled, ai_auto_reply_mode')
+      .eq(pageField, pageId)
+      .maybeSingle();
+
+    if (!business) {
+      console.warn(`[webhook] No ${channel} business for page_id:`, pageId);
+      continue;
+    }
+
+    // Instagram and Messenger use `entry[].messaging[]` structure
+    const messaging = (entry.messaging as Record<string, unknown>[]) ?? [];
+
+    for (const event of messaging) {
+      // Skip delivery/read receipts — only process actual messages
+      if (!event.message) continue;
+      const msg = event.message as Record<string, unknown>;
+      // Skip echo messages (sent by the page itself)
+      if (msg.is_echo) continue;
+
+      const sender    = (event.sender as { id?: string })?.id;
+      const msgId     = msg.mid as string | undefined;
+      const tsRaw     = event.timestamp as number;
+
+      if (!sender || !msgId) continue;
+
+      // Deduplicate
+      const { data: dup } = await db.from('wa_messages')
+        .select('id').eq('wa_message_id', msgId).maybeSingle();
+      if (dup) continue;
+
+      const { id: contactId, score: _score } = await upsertContact(db, business.id, {
+        external_id: sender,
+        name: null,
+        channel,
+      });
+      if (!contactId) continue;
+
+      const convId = await upsertConversation(db, business.id, contactId, channel);
+      const { type, content, mediaUrl } = extractSocialMessageContent(msg);
+      const waTs = new Date(tsRaw).toISOString();
+
+      const { data: savedMsg } = await db.from('wa_messages').insert({
+        business_id:     business.id,
+        conversation_id: convId,
+        contact_id:      contactId,
+        wa_message_id:   msgId,
+        channel,
+        direction:       'inbound',
+        type,
+        content,
+        media_url:       mediaUrl,
+        status:          'delivered',
+        wa_timestamp:    waTs,
+      }).select('id').single();
+
+      // AI reply + (non-blocking) intent classification for text messages
+      if (savedMsg && type === 'text' && content) {
+        const aiEnabled   = (business as Record<string, unknown>).ai_enabled as boolean | undefined;
+        const aiReplyMode = (business as Record<string, unknown>).ai_auto_reply_mode as string | undefined;
+        if (aiEnabled && aiReplyMode && aiReplyMode !== 'disabled') {
+          await triggerAiAgent({
+            business_id: business.id, conversation_id: convId,
+            contact_phone: null, contact_external_id: sender,
+            last_message_content: content, contact_id: contactId,
+            channel, intent: null,
+          });
+        }
+        backgroundTask(
+          classifyIntent(content).then(async ({ intent, scoreBonus }) => {
+            await db.from('wa_messages').update({ intent }).eq('id', savedMsg.id);
+            if (scoreBonus !== 0) {
+              const { data: ct } = await db.from('wa_contacts').select('score').eq('id', contactId).single();
+              if (ct) {
+                await db.from('wa_contacts')
+                  .update({ score: Math.max(0, (ct.score ?? 0) + scoreBonus) })
+                  .eq('id', contactId);
+              }
+            }
+          }).catch(e => console.warn('[webhook] background classifyIntent failed:', e)),
+        );
+      }
+    }
   }
-
-  if (channel === 'instagram') {
-    const pageId = biz.ig_page_id as string | null;
-    const token  = biz.ig_access_token as string | null;
-    if (!pageId || !token) return null;
-    const res = await fetch(`https://graph.facebook.com/${META_API_VERSION}/${pageId}/messages`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipient: { id: recipientId }, message: { text: message } }),
-    });
-    if (!res.ok) { console.error('[ai-agent] IG send error:', await res.json()); return null; }
-    const d = await res.json() as { message_id?: string };
-    return d.message_id ?? null;
-  }
-
-  if (channel === 'messenger') {
-    const fbToken = biz.fb_page_token as string | null;
-    if (!fbToken) return null;
-    const res = await fetch(`https://graph.facebook.com/${META_API_VERSION}/me/messages?access_token=${fbToken}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipient: { id: recipientId }, message: { text: message } }),
-    });
-    if (!res.ok) { console.error('[ai-agent] Messenger send error:', await res.json()); return null; }
-    const d = await res.json() as { message_id?: string };
-    return d.message_id ?? null;
-  }
-
-  return null;
 }
 
-// ── Main handler ───────────────────────────────────────────────────────────────
+// ── Main handler ──────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-  if (req.method !== 'POST')   return new Response('Method Not Allowed', { status: 405 });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
 
-  const authHeader = req.headers.get('Authorization');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!authHeader || authHeader !== `Bearer ${serviceKey}`) {
-    return new Response(JSON.stringify({ error: 'Forbidden' }), {
-      status: 403, headers: { 'Content-Type': 'application/json' },
+  // Webhook verification GET (shared verify_token for all channels)
+  if (req.method === 'GET') {
+    const url       = new URL(req.url);
+    const mode      = url.searchParams.get('hub.mode');
+    const token     = url.searchParams.get('hub.verify_token');
+    const challenge = url.searchParams.get('hub.challenge');
+    const verifyToken = Deno.env.get('WHATSAPP_VERIFY_TOKEN');
+    if (mode === 'subscribe' && token === verifyToken) {
+      return new Response(challenge, { status: 200 });
+    }
+    return new Response('Forbidden', { status: 403 });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 });
+  }
+
+  const rawBody = await req.arrayBuffer();
+
+  // Signature verification
+  const appSecret = Deno.env.get('WHATSAPP_APP_SECRET');
+  if (!appSecret) {
+    console.error('[webhook] WHATSAPP_APP_SECRET not configured');
+    return new Response(JSON.stringify({ error: 'Webhook not configured' }), {
+      status: 500, headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  let body: AgentRequest;
-  try { body = await req.json(); }
-  catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
-    });
+  const signatureHeader = req.headers.get('X-Hub-Signature-256');
+  const valid = await verifyMetaSignature(rawBody, signatureHeader, appSecret);
+  if (!valid) {
+    console.warn('[webhook] Signature verification failed');
+    return new Response('Forbidden', { status: 403 });
   }
 
-  const {
-    business_id, conversation_id, contact_phone, contact_external_id,
-    last_message_content, contact_id, channel = 'whatsapp', intent,
-  } = body;
-
-  if (!business_id || !conversation_id || !last_message_content || !contact_id) {
-    return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  const recipientId = channel === 'whatsapp' ? contact_phone : contact_external_id;
-  if (!recipientId) {
-    return new Response(JSON.stringify({ skipped: 'No recipient identifier' }), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
-    });
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(new TextDecoder().decode(rawBody));
+  } catch {
+    return new Response('Bad Request', { status: 400 });
   }
 
   try {
     const db = supabaseAdmin();
+    const objectType = (body.object as string) ?? '';
 
-    // 1-3. Load business, check needs_human, and match flow nodes — none of these
-    // three depend on each other's *results* (all three only need IDs already
-    // present in the request body), so run them in one round trip instead of
-    // three sequential ones. Business is also cached across warm invocations.
-    const businessCacheKey = `business:${business_id}`;
-    // deno-lint-ignore no-explicit-any
-    const cachedBusiness = cacheGet<any>(businessCacheKey);
-
-    const [businessData, convResult, flowNode] = await Promise.all([
-      cachedBusiness
-        ? Promise.resolve(cachedBusiness)
-        : db.from('businesses')
-            .select(
-              'name, description, ai_enabled, ai_prompt, ai_auto_reply_mode, ai_model, plan,' +
-              'ai_operating_hours, ai_knowledge_base, ai_handoff_keywords,' +
-              'wa_phone_number_id, wa_access_token,' +
-              'ig_page_id, ig_access_token, fb_page_id, fb_page_token',
-            )
-            .eq('id', business_id)
-            .maybeSingle()
-            .then(r => r.data),
-      db.from('wa_conversations').select('needs_human').eq('id', conversation_id).maybeSingle(),
-      matchFlowNode(db, business_id, last_message_content, intent),
-    ]);
-
-    // deno-lint-ignore no-explicit-any
-    const business = businessData as any;
-    if (business && !cachedBusiness) cacheSet(businessCacheKey, business, BUSINESS_CACHE_TTL_MS);
-
-    if (!business?.ai_enabled || business.ai_auto_reply_mode === 'disabled') {
-      return new Response(JSON.stringify({ skipped: 'AI not enabled' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (objectType === 'whatsapp_business_account') {
+      await processWhatsAppEntries(db, body);
+    } else if (objectType === 'instagram') {
+      await processSocialEntries(db, body, 'instagram');
+    } else if (objectType === 'page') {
+      await processSocialEntries(db, body, 'messenger');
+    } else {
+      console.warn('[webhook] Unknown object type:', objectType);
     }
-
-    // Off-hours enforcement
-    if (business.ai_auto_reply_mode === 'off_hours') {
-      if (!business.ai_operating_hours) {
-        // No schedule configured — treat as always-open (safe default: do not respond)
-        return new Response(JSON.stringify({ skipped: 'off_hours mode but no schedule configured' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      }
-      if (isWithinBusinessHours(business.ai_operating_hours as OperatingHours)) {
-        return new Response(JSON.stringify({ skipped: 'Within business hours' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      }
-    }
-
-    const conv = convResult.data;
-    if (conv?.needs_human) {
-      return new Response(JSON.stringify({ skipped: 'Awaiting human agent' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
-
-    // Handoff keyword detection
-    const handoffKeywords = (business.ai_handoff_keywords as string[]) ?? [];
-    if (detectsHandoff(last_message_content, handoffKeywords)) {
-      await db.from('wa_conversations').update({ needs_human: true }).eq('id', conversation_id);
-      console.log('[ai-agent] Handoff flagged, awaiting human agent:', conversation_id);
-      return new Response(JSON.stringify({ success: true, handoff: true }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Flow node match (already fetched in parallel above)
-    if (flowNode) {
-      let responseText = flowNode.response_template;
-      // Resolve {{promociones}} placeholder with active promo KB items
-      if (responseText.includes('{{promociones}}')) {
-        const kb = (business.ai_knowledge_base ?? []) as Array<{ type: string; title: string; content: string }>;
-        const promos = kb.filter(i => i.type === 'promo');
-        const promosText = promos.length
-          ? promos.map(p => `• *${p.title}*: ${p.content}`).join('\n')
-          : 'No hay promociones activas en este momento.';
-        responseText = responseText.replace(/\{\{promociones\}\}/g, promosText);
-      }
-      const msgId = await sendReply(channel, recipientId, responseText, business as Record<string, unknown>);
-      const now = new Date().toISOString();
-      await db.from('wa_messages').insert({
-        business_id, conversation_id, contact_id, channel,
-        wa_message_id: msgId ?? null, direction: 'outbound', type: 'text',
-        content: responseText, status: msgId ? 'sent' : 'failed', sent_by_ai: true, wa_timestamp: now,
-        flow_node_name: flowNode.name,
-      });
-      await db.from('wa_conversations').update({ last_message_at: now, flow_node_id: flowNode.id }).eq('id', conversation_id);
-      console.log('[ai-agent] Flow matched:', flowNode.id);
-      return new Response(JSON.stringify({ success: true, flow_node_id: flowNode.id }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // 6. LLM reply
-    if (!Deno.env.get('GROQ_API_KEY')) {
-      return new Response(JSON.stringify({ skipped: 'Groq not configured' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
-
-    const [menuContext, history] = await Promise.all([
-      buildMenuContext(db, business_id),
-      getHistory(db, conversation_id),
-    ]);
-
-    const knowledgeContext = buildKnowledgeContext((business.ai_knowledge_base as KnowledgeItem[]) ?? []);
-
-    // Build customer memory context from CRM data
-    let customerMemoryContext = '';
-    if (contact_phone) {
-      const normPhone = contact_phone.replace(/\D/g, '');
-      const [{ data: recentOrders }, { data: crmCustomer }] = await Promise.all([
-        db.from('orders')
-          .select('total, status, created_at')
-          .eq('business_id', business_id)
-          .or(`customer_phone.eq.${contact_phone},customer_phone.eq.${normPhone}`)
-          .order('created_at', { ascending: false })
-          .limit(3),
-        db.from('customers')
-          .select('name, tags, notes')
-          .eq('business_id', business_id)
-          .or(`phone.eq.${contact_phone},phone.eq.${normPhone}`)
-          .maybeSingle(),
-      ]);
-      const lines: string[] = [];
-      if (recentOrders && recentOrders.length > 0) {
-        const last = recentOrders[0];
-        const daysSince = Math.floor((Date.now() - new Date(last.created_at).getTime()) / 86_400_000);
-        lines.push(`\n\n--- MEMORIA DEL CLIENTE ---`);
-        lines.push(`Este cliente ha realizado ${recentOrders.length} pedido(s) previo(s).`);
-        lines.push(`Último pedido: hace ${daysSince} día(s), $${last.total?.toLocaleString('es-CO') ?? '?'} (${last.status}).`);
-      }
-      const tags = (crmCustomer?.tags as string[] | null) ?? [];
-      if (tags.length > 0) {
-        if (lines.length === 0) lines.push(`\n\n--- MEMORIA DEL CLIENTE ---`);
-        lines.push(`Etiquetas CRM: ${tags.join(', ')}.`);
-      }
-      if (crmCustomer?.notes) {
-        if (lines.length === 0) lines.push(`\n\n--- MEMORIA DEL CLIENTE ---`);
-        lines.push(`Nota interna: ${String(crmCustomer.notes).slice(0, 200)}.`);
-      }
-      if (lines.length > 0) {
-        lines.push(`Usa este contexto para personalizar la respuesta sin mencionarlo explícitamente.`);
-        lines.push(`--- FIN MEMORIA ---`);
-        customerMemoryContext = lines.join('\n');
-      }
-    }
-
-    const defaultPrompt = `Eres un asistente virtual amable y profesional para ${business.name}.
-Responde preguntas sobre el menú, precios, disponibilidad y horarios de forma concisa (máximo 3 oraciones).
-Si el cliente quiere hacer un pedido, recoge su solicitud y confirma los detalles.
-Usa un tono cálido y en español colombiano. Si no sabes algo, di que lo consultarás.
-NO inventes precios ni productos que no aparezcan en el menú.`;
-
-    const systemPrompt = [
-      business.ai_prompt ?? defaultPrompt,
-      menuContext,
-      knowledgeContext,
-      business.description ? `\nDescripción: ${business.description}` : '',
-      customerMemoryContext,
-    ].filter(Boolean).join('');
-
-    const reply = await generateReply(business, systemPrompt, history, last_message_content);
-    if (!reply) {
-      return new Response(JSON.stringify({ skipped: 'No reply generated' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
-
-    const msgId = await sendReply(channel, recipientId, reply, business as Record<string, unknown>);
-    const now = new Date().toISOString();
-    await db.from('wa_messages').insert({
-      business_id, conversation_id, contact_id, channel,
-      wa_message_id: msgId ?? null, direction: 'outbound', type: 'text',
-      content: reply, status: msgId ? 'sent' : 'failed', sent_by_ai: true, wa_timestamp: now,
-    });
-    await db.from('wa_conversations').update({ last_message_at: now, status: 'open' }).eq('id', conversation_id);
-
-    console.log(`[ai-agent] Replied via ${channel}:`, msgId);
-    return new Response(JSON.stringify({ success: true, message_id: msgId }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
   } catch (err) {
-    console.error('[ai-agent] error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    console.error('[webhook] processing error:', err);
+    return new Response(JSON.stringify({ error: 'Processing failed' }), {
       status: 500, headers: { 'Content-Type': 'application/json' },
     });
   }
+
+  return new Response(JSON.stringify({ status: 'ok' }), {
+    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 });
