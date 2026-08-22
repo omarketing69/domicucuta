@@ -4,6 +4,14 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SESSION_TTL_MS = 45 * 60 * 1000; // 45 min — an abandoned session from earlier shouldn't silently resume
+
+interface PersistedSession {
+  v: 1;
+  messages: Message[];
+  orderState: OrderState;
+  savedAt: number;
+}
 
 interface OrderData { cliente: string; telefono?: string; items: string; entrega: string; direccion: string; notas: string }
 interface BookingData { servicio: string; servicio_id?: string; fecha: string; hora: string; personas: number; cliente: string; telefono?: string; notas: string; precio?: number }
@@ -83,32 +91,6 @@ function cleanForSpeech(text: string, currency = 'COP'): string {
     .trim();
 }
 
-function parseOrderTag(raw: string): { clean: string; orderData?: OrderData } {
-  const match = raw.match(/\[ORDER:\s*(\{[\s\S]*?\})\s*\]/i);
-  if (!match) return { clean: raw };
-  try {
-    const orderData = JSON.parse(match[1]) as OrderData;
-    const clean = raw.replace(match[0], '').trim();
-    return { clean, orderData };
-  } catch {
-    const clean = raw.replace(match[0], '').trim();
-    return { clean };
-  }
-}
-
-function parseBookingTag(raw: string): { clean: string; bookingData?: BookingData } {
-  const match = raw.match(/\[BOOKING:\s*(\{[\s\S]*?\})\s*\]/i);
-  if (!match) return { clean: raw };
-  try {
-    const bookingData = JSON.parse(match[1]) as BookingData;
-    const clean = raw.replace(match[0], '').trim();
-    return { clean, bookingData };
-  } catch {
-    const clean = raw.replace(match[0], '').trim();
-    return { clean };
-  }
-}
-
 function buildWaBookingMessage(businessName: string, bd: BookingData): string {
   let msg = `📅 *Reserva — ${businessName}*\n\n`;
   if (bd.cliente) msg += `👤 *Cliente:* ${bd.cliente}\n`;
@@ -120,19 +102,6 @@ function buildWaBookingMessage(businessName: string, bd: BookingData): string {
   if (bd.notas) msg += `📝 *Notas:* ${bd.notas}\n`;
   msg += `\n_Reserva realizada por el asistente IA_`;
   return encodeURIComponent(msg);
-}
-
-function parseStateTag(raw: string): { clean: string; state?: OrderState } {
-  const match = raw.match(/\[STATE:\s*(\{[\s\S]*?\})\s*\]/i);
-  if (!match) return { clean: raw };
-  try {
-    const state = JSON.parse(match[1]) as OrderState;
-    const clean = raw.replace(match[0], '').trim();
-    return { clean, state };
-  } catch {
-    const clean = raw.replace(match[0], '').trim();
-    return { clean };
-  }
 }
 
 function mergeOrderState(prev: OrderState, next?: OrderState): OrderState {
@@ -185,6 +154,42 @@ export default function MenuAIAssistant({ slug, aiEnabled, brandColor = '#f97316
   const hasVoiceInput  = typeof window !== 'undefined' &&
     !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   const hasSpeechSynth = typeof window !== 'undefined' && !!window.speechSynthesis;
+
+  const sessionKey = `menu-ai-session:${slug}`;
+
+  // Restore an in-progress conversation (survives reload/nav within the same
+  // tab) — sessionStorage only, so it resets once the tab is actually closed.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(sessionKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as PersistedSession;
+      if (parsed?.v !== 1 || !Array.isArray(parsed.messages)) return;
+      if (Date.now() - (parsed.savedAt ?? 0) > SESSION_TTL_MS) {
+        sessionStorage.removeItem(sessionKey);
+        return;
+      }
+      setMessages(parsed.messages);
+      orderStateRef.current = parsed.orderState ?? {};
+    } catch {
+      sessionStorage.removeItem(sessionKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
+
+  // Persist on every message change (order state is a ref, but it's always
+  // updated in the same tick as the messages that follow it — see sendQuestion).
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try {
+      const payload: PersistedSession = {
+        v: 1, messages, orderState: orderStateRef.current, savedAt: Date.now(),
+      };
+      sessionStorage.setItem(sessionKey, JSON.stringify(payload));
+    } catch {
+      // sessionStorage unavailable (private mode, quota) — persistence is best-effort
+    }
+  }, [messages, sessionKey]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -268,11 +273,28 @@ export default function MenuAIAssistant({ slug, aiEnabled, brandColor = '#f97316
     setMessages(prev => [...prev, { role: 'user', content: q }]);
     setLoading(true);
 
+    // Grows the trailing assistant bubble as streamed chunks arrive, creating
+    // it on the first chunk. Declared per-call (not component state) since
+    // sendQuestion runs once per submitted question.
+    let assistantAdded = false;
+    let accumulatedText = '';
+    const upsertAssistantMessage = (content: string, extra?: Partial<Message>) => {
+      setMessages(prev => {
+        if (!assistantAdded) {
+          assistantAdded = true;
+          return [...prev, { role: 'assistant', content, ...extra }];
+        }
+        const next = [...prev];
+        next[next.length - 1] = { ...next[next.length - 1], content, ...extra };
+        return next;
+      });
+    };
+
     try {
-      const history = messages.slice(-16).map(m => ({ role: m.role, content: m.content }));
+      const history = messages.slice(-24).map(m => ({ role: m.role, content: m.content }));
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
-      const res  = await fetch(`${SUPABASE_URL}/functions/v1/menu-agent`, {
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/menu-agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -283,10 +305,8 @@ export default function MenuAIAssistant({ slug, aiEnabled, brandColor = '#f97316
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      const data = await res.json() as { answer?: string; error?: string };
 
-      if (!res.ok || !data.answer) {
-        // Server-side failure — restore the question so the user can retry with one tap
+      if (!res.ok || !res.body) {
         setInput(q);
         setMessages(prev => [...prev, {
           role: 'assistant',
@@ -295,34 +315,83 @@ export default function MenuAIAssistant({ slug, aiEnabled, brandColor = '#f97316
         return;
       }
 
-      const { clean: afterOrder, orderData } = parseOrderTag(data.answer);
-      const { clean: afterBooking, bookingData } = parseBookingTag(afterOrder);
-      const { clean, state } = parseStateTag(afterBooking);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let terminal: { state?: OrderState; orderData?: OrderData; bookingData?: BookingData; error?: string } | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const payload = trimmed.slice(5).trim();
+          if (!payload) continue;
+          let evt: { delta?: string; done?: boolean; state?: OrderState; orderData?: OrderData; bookingData?: BookingData; error?: string };
+          try { evt = JSON.parse(payload); } catch { continue; }
+          if (typeof evt.delta === 'string' && evt.delta) {
+            accumulatedText += evt.delta;
+            upsertAssistantMessage(accumulatedText);
+          } else if (evt.done) {
+            terminal = evt;
+          }
+        }
+      }
+
+      if (!accumulatedText && (!terminal || terminal.error)) {
+        // Never got any content — same failure UX as a hard server error
+        setInput(q);
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '😅 Tuve un pequeño problema al responder. Tu pregunta ya está lista en el campo de texto — presiona enviar para intentarlo de nuevo.',
+        }]);
+        return;
+      }
+      if (terminal?.error) {
+        console.warn('[menu-agent] stream ended with error after partial content:', terminal.error);
+      }
+
+      const { state, orderData, bookingData } = terminal ?? {};
       orderStateRef.current = mergeOrderState(orderStateRef.current, state);
       if (orderData) {
         orderStateRef.current = mergeOrderState(orderStateRef.current, orderData as OrderState);
       }
-      // For bookings, attempt RPC first; only attach bookingData to message if save succeeded
-      let savedBookingData: BookingData | undefined;
+
+      let finalText = accumulatedText.trim();
+
+      // For bookings, attempt RPC first; only attach bookingData to the message if save succeeded
       if (bookingData) {
         const saved = await sendAIBooking(bookingData);
         if (saved) {
-          savedBookingData = bookingData;
-        } else {
-          // Booking failed to save — append a warning to the message
-          const dateOk = !!bookingData.fecha?.match(/^\d{4}-\d{2}-\d{2}$/);
-          const timeOk = !!bookingData.hora?.match(/^\d{2}:\d{2}/);
-          const warning = (!dateOk || !timeOk)
-            ? '\n\n⚠️ No pude guardar la reserva automáticamente — por favor confirma directamente por WhatsApp con el negocio.'
-            : '\n\n⚠️ Hubo un problema al guardar tu reserva. Por favor contacta al negocio directamente por WhatsApp.';
-          setMessages(prev => [...prev, { role: 'assistant', content: clean + warning, orderData, bookingData: undefined }]);
-          speak(clean);
+          if (!finalText) finalText = `¡Listo! 🎉 Tu reserva de "${bookingData.servicio}" quedó registrada.`;
+          upsertAssistantMessage(finalText, { bookingData });
+          speak(finalText);
           if (orderData) sendAIOrder(orderData);
           return;
         }
+        const dateOk = !!bookingData.fecha?.match(/^\d{4}-\d{2}-\d{2}$/);
+        const timeOk = !!bookingData.hora?.match(/^\d{2}:\d{2}/);
+        const warning = (!dateOk || !timeOk)
+          ? '\n\n⚠️ No pude guardar la reserva automáticamente — por favor confirma directamente por WhatsApp con el negocio.'
+          : '\n\n⚠️ Hubo un problema al guardar tu reserva. Por favor contacta al negocio directamente por WhatsApp.';
+        finalText = (finalText || 'Tu reserva está casi lista.') + warning;
+        upsertAssistantMessage(finalText, { orderData, bookingData: undefined });
+        speak(finalText);
+        if (orderData) sendAIOrder(orderData);
+        return;
       }
-      setMessages(prev => [...prev, { role: 'assistant', content: clean, orderData, bookingData: savedBookingData }]);
-      speak(clean);
+
+      if (orderData && !finalText) {
+        finalText = '¡Listo! 🎉 Tu pedido fue registrado.';
+      }
+      if (orderData || finalText !== accumulatedText.trim()) {
+        upsertAssistantMessage(finalText, { orderData });
+      }
+      if (finalText) speak(finalText);
       if (orderData) sendAIOrder(orderData);
     } catch (err) {
       // Network error or client-side timeout — restore question for easy retry
@@ -352,7 +421,8 @@ export default function MenuAIAssistant({ slug, aiEnabled, brandColor = '#f97316
     setInput('');
     savedRef.current = false;
     orderStateRef.current = {};
-  }, [stopSpeaking, stopListening]);
+    try { sessionStorage.removeItem(sessionKey); } catch { /* best effort */ }
+  }, [stopSpeaking, stopListening, sessionKey]);
 
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;

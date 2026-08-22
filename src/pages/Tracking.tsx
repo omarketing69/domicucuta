@@ -80,29 +80,25 @@ export default function Tracking() {
     if (!code) return;
     (async () => {
       const { data, error } = await supabase
-        .from('orders')
-        .select('*, order_items(*), businesses(name, logo_url, primary_color, production_times)')
-        .eq('tracking_code', code.toUpperCase())
-        .single();
+        .rpc('get_order_by_tracking_code', { p_tracking_code: code.toUpperCase() });
       if (error || !data) { setNotFound(true); setLoading(false); return; }
       setOrder(data as unknown as TrackOrder);
       setLoading(false);
     })();
   }, [code]);
 
-  // Realtime subscription
+  // Poll for status updates. The order lookup is code-scoped (via the RPC
+  // above), so we can't use a postgres_changes realtime subscription here
+  // without re-exposing the whole orders table to anon reads.
   useEffect(() => {
-    if (!order) return;
-    const channel = supabase
-      .channel(`tracking_${order.id}`)
-      .on('postgres_changes', {
-        event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}`,
-      }, payload => {
-        setOrder(prev => prev ? { ...prev, ...(payload.new as Partial<TrackOrder>) } : prev);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [order?.id]);
+    if (!code || !order || order.status === 'completed' || order.status === 'cancelled') return;
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .rpc('get_order_by_tracking_code', { p_tracking_code: code.toUpperCase() });
+      if (data) setOrder(data as unknown as TrackOrder);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [code, order?.status]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-background">

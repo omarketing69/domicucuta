@@ -25,6 +25,20 @@ const supabaseAdmin = () => createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
+// Fire-and-forget a promise without blocking the response, while still letting
+// it finish after the response is sent (Supabase's Edge Runtime keeps the
+// isolate alive for work registered via waitUntil; without it a background
+// promise can get cut off once the response goes out).
+function backgroundTask(promise: Promise<unknown>): void {
+  // deno-lint-ignore no-explicit-any
+  const rt = (globalThis as any).EdgeRuntime;
+  if (rt?.waitUntil) {
+    rt.waitUntil(promise);
+  } else {
+    promise.catch(() => {});
+  }
+}
+
 // ── Signature verification ─────────────────────────────────────────────────────
 
 async function verifyMetaSignature(
@@ -319,12 +333,6 @@ async function processWhatsAppEntries(
         }).select('id').single();
 
         if (savedMsg && type === 'text' && content) {
-          const { intent, scoreBonus } = await classifyIntent(content);
-          await db.from('wa_messages').update({ intent }).eq('id', savedMsg.id);
-          if (scoreBonus !== 0) {
-            const newScore = Math.max(0, contactScore + scoreBonus);
-            await db.from('wa_contacts').update({ score: newScore }).eq('id', contactId);
-          }
           const aiEnabled   = (business as Record<string, unknown>).ai_enabled as boolean | undefined;
           const aiReplyMode = (business as Record<string, unknown>).ai_auto_reply_mode as string | undefined;
           if (aiEnabled && aiReplyMode && aiReplyMode !== 'disabled') {
@@ -332,9 +340,22 @@ async function processWhatsAppEntries(
               business_id: business.id, conversation_id: convId,
               contact_phone: from, contact_external_id: null,
               last_message_content: content, contact_id: contactId,
-              channel: 'whatsapp', intent,
+              channel: 'whatsapp', intent: null,
             });
           }
+          // Intent classification (an extra LLM round trip) only feeds an
+          // optional trigger_intent flow-node match and a CRM score bump —
+          // neither the reply above needs it, so it runs in the background
+          // instead of blocking every inbound message on a second LLM call.
+          backgroundTask(
+            classifyIntent(content).then(async ({ intent, scoreBonus }) => {
+              await db.from('wa_messages').update({ intent }).eq('id', savedMsg.id);
+              if (scoreBonus !== 0) {
+                const newScore = Math.max(0, contactScore + scoreBonus);
+                await db.from('wa_contacts').update({ score: newScore }).eq('id', contactId);
+              }
+            }).catch(e => console.warn('[webhook] background classifyIntent failed:', e)),
+          );
         }
       }
 
@@ -436,18 +457,8 @@ async function processSocialEntries(
         wa_timestamp:    waTs,
       }).select('id').single();
 
-      // Intent classification for text messages
+      // AI reply + (non-blocking) intent classification for text messages
       if (savedMsg && type === 'text' && content) {
-        const { intent, scoreBonus } = await classifyIntent(content);
-        await db.from('wa_messages').update({ intent }).eq('id', savedMsg.id);
-        if (scoreBonus !== 0) {
-          const { data: ct } = await db.from('wa_contacts').select('score').eq('id', contactId).single();
-          if (ct) {
-            await db.from('wa_contacts')
-              .update({ score: Math.max(0, (ct.score ?? 0) + scoreBonus) })
-              .eq('id', contactId);
-          }
-        }
         const aiEnabled   = (business as Record<string, unknown>).ai_enabled as boolean | undefined;
         const aiReplyMode = (business as Record<string, unknown>).ai_auto_reply_mode as string | undefined;
         if (aiEnabled && aiReplyMode && aiReplyMode !== 'disabled') {
@@ -455,9 +466,22 @@ async function processSocialEntries(
             business_id: business.id, conversation_id: convId,
             contact_phone: null, contact_external_id: sender,
             last_message_content: content, contact_id: contactId,
-            channel, intent,
+            channel, intent: null,
           });
         }
+        backgroundTask(
+          classifyIntent(content).then(async ({ intent, scoreBonus }) => {
+            await db.from('wa_messages').update({ intent }).eq('id', savedMsg.id);
+            if (scoreBonus !== 0) {
+              const { data: ct } = await db.from('wa_contacts').select('score').eq('id', contactId).single();
+              if (ct) {
+                await db.from('wa_contacts')
+                  .update({ score: Math.max(0, (ct.score ?? 0) + scoreBonus) })
+                  .eq('id', contactId);
+              }
+            }
+          }).catch(e => console.warn('[webhook] background classifyIntent failed:', e)),
+        );
       }
     }
   }
