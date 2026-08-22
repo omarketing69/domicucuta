@@ -1,4 +1,4 @@
-**
+/**
  * meta-webhook (was whatsapp-webhook) — Supabase Edge Function v10
  * Handles WhatsApp, Instagram DM, and Facebook Messenger in one endpoint.
  *
