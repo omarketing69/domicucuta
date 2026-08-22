@@ -15,9 +15,25 @@
  */
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { cacheGet, cacheSet } from '../_shared/cache.ts';
 
 const META_API_VERSION = 'v19.0';
-const DEFAULT_MODEL    = 'llama-3.3-70b-versatile';
+
+// Free tier: Qwen3.6-27B on Groq (every Groq model is free-tier, gated only by
+// rate limits). Paid tier: Kimi K2.6 via OpenRouter, gated to Pro-plan
+// businesses that opt in via ai_model = 'kimi-k2.6', with a silent fallback
+// to the free Qwen/Groq path on any failure.
+const DEFAULT_MODEL  = 'qwen/qwen3.6-27b';
+const FALLBACK_MODEL = 'llama-3.1-8b-instant';
+const KIMI_MODEL_SENTINEL = 'kimi-k2.6';
+const OPENROUTER_MODEL = 'moonshotai/kimi-k2.6'; // verify exact OpenRouter slug at deploy time
+const PLAN_RANK: Record<string, number> = { free: 0, starter: 1, pro: 2 };
+
+const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+
+const BUSINESS_CACHE_TTL_MS = 60_000;
+const MENU_CACHE_TTL_MS = 90_000;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,11 +109,18 @@ function buildKnowledgeContext(items: KnowledgeItem[]): string {
 }
 
 async function buildMenuContext(db: ReturnType<typeof supabaseAdmin>, businessId: string): Promise<string> {
+  const cacheKey = `menu:${businessId}`;
+  const cached = cacheGet<string>(cacheKey);
+  if (cached !== undefined) return cached;
+
   const [{ data: categories }, { data: products }] = await Promise.all([
     db.from('categories').select('id, name').eq('business_id', businessId).eq('is_active', true).order('sort_order'),
     db.from('products').select('name, description, price, category_id').eq('business_id', businessId).eq('is_active', true).order('name'),
   ]);
-  if (!categories?.length && !products?.length) return '';
+  if (!categories?.length && !products?.length) {
+    cacheSet(cacheKey, '', MENU_CACHE_TTL_MS);
+    return '';
+  }
 
   const catMap: Record<string, string> = {};
   for (const c of categories ?? []) catMap[c.id] = c.name;
@@ -118,7 +141,9 @@ async function buildMenuContext(db: ReturnType<typeof supabaseAdmin>, businessId
       lines.push(`  • ${p.name}${price}${desc}`);
     }
   }
-  return lines.join('\n');
+  const result = lines.join('\n');
+  cacheSet(cacheKey, result, MENU_CACHE_TTL_MS);
+  return result;
 }
 
 async function getHistory(
@@ -169,37 +194,83 @@ function detectsHandoff(message: string, keywords: string[]): boolean {
   return keywords.some(kw => lower.includes(kw.toLowerCase().trim()));
 }
 
-// ── Groq ────────────────────────────────────────────────────────────────────────
+// ── Model/provider resolution ─────────────────────────────────────────────────
+
+interface ModelAttempt {
+  endpoint: string;
+  apiKey: string;
+  model: string;
+  extraHeaders?: Record<string, string>;
+  timeoutMs: number;
+}
+
+function buildAttempts(business: { ai_model?: string | null; plan?: string | null }): ModelAttempt[] {
+  const groqKey = Deno.env.get('GROQ_API_KEY')!;
+  const groqAttempt = (model: string, timeoutMs: number): ModelAttempt => ({
+    endpoint: GROQ_ENDPOINT, apiKey: groqKey, model, timeoutMs,
+  });
+
+  const planRank = PLAN_RANK[business.plan ?? 'free'] ?? 0;
+  const wantsKimi = business.ai_model === KIMI_MODEL_SENTINEL;
+  const openRouterKey = Deno.env.get('OPENROUTER_API_KEY');
+
+  if (wantsKimi && planRank >= PLAN_RANK['pro'] && openRouterKey) {
+    return [
+      {
+        endpoint: OPENROUTER_ENDPOINT,
+        apiKey: openRouterKey,
+        model: OPENROUTER_MODEL,
+        extraHeaders: { 'HTTP-Referer': 'https://domicircuspop.replit.app', 'X-Title': 'DomiCircusPop AI Agent' },
+        timeoutMs: 9_000,
+      },
+      groqAttempt(DEFAULT_MODEL, 6_000), // degrade to free Qwen if Kimi/OpenRouter fails
+    ];
+  }
+
+  const primaryModel = (business.ai_model && business.ai_model !== KIMI_MODEL_SENTINEL)
+    ? business.ai_model
+    : DEFAULT_MODEL;
+  return [groqAttempt(primaryModel, 8_000), groqAttempt(FALLBACK_MODEL, 6_000)];
+}
+
+// ── LLM call ────────────────────────────────────────────────────────────────────
 
 async function generateReply(
-  model: string,
+  business: { ai_model?: string | null; plan?: string | null },
   systemPrompt: string,
   history: Array<{ role: 'user' | 'assistant'; content: string }>,
   lastMessage: string,
 ): Promise<string | null> {
-  const apiKey = Deno.env.get('GROQ_API_KEY');
-  if (!apiKey) { console.warn('[ai-agent] GROQ_API_KEY not set'); return null; }
+  if (!Deno.env.get('GROQ_API_KEY')) { console.warn('[ai-agent] GROQ_API_KEY not set'); return null; }
 
-  const primaryModel  = model || DEFAULT_MODEL;
-  const fallbackModel = 'llama-3.1-8b-instant';
   const msgs = [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: lastMessage }];
+  const attempts = buildAttempts(business);
 
-  for (const m of [primaryModel, fallbackModel]) {
+  for (const attempt of attempts) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), attempt.timeoutMs);
     try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const res = await fetch(attempt.endpoint, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: m, max_tokens: 500, temperature: 0.5, messages: msgs }),
+        signal: ctrl.signal,
+        headers: {
+          'Authorization': `Bearer ${attempt.apiKey}`,
+          'Content-Type': 'application/json',
+          ...(attempt.extraHeaders ?? {}),
+        },
+        body: JSON.stringify({ model: attempt.model, max_tokens: 500, temperature: 0.5, messages: msgs }),
       });
       if (!res.ok) {
-        console.error(`[ai-agent] Groq ${m} error:`, res.status, await res.text());
+        console.error(`[ai-agent] ${attempt.model} error:`, res.status, (await res.text()).slice(0, 200));
         continue;
       }
       const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
       const content = data.choices?.[0]?.message?.content?.trim() ?? null;
       if (content) return content;
     } catch (e) {
-      console.error(`[ai-agent] Groq ${m} threw:`, e);
+      console.error(`[ai-agent] ${attempt.model} threw:`, e);
+    } finally {
+      clearTimeout(timer);
     }
   }
   return null;
@@ -300,23 +371,40 @@ Deno.serve(async (req) => {
   try {
     const db = supabaseAdmin();
 
-    // 1. Load business
-    const { data: business } = await db
-      .from('businesses')
-      .select(
-        'name, description, ai_enabled, ai_prompt, ai_auto_reply_mode, ai_model,' +
-        'ai_operating_hours, ai_knowledge_base, ai_handoff_keywords,' +
-        'wa_phone_number_id, wa_access_token,' +
-        'ig_page_id, ig_access_token, fb_page_id, fb_page_token',
-      )
-      .eq('id', business_id)
-      .maybeSingle();
+    // 1-3. Load business, check needs_human, and match flow nodes — none of these
+    // three depend on each other's *results* (all three only need IDs already
+    // present in the request body), so run them in one round trip instead of
+    // three sequential ones. Business is also cached across warm invocations.
+    const businessCacheKey = `business:${business_id}`;
+    // deno-lint-ignore no-explicit-any
+    const cachedBusiness = cacheGet<any>(businessCacheKey);
+
+    const [businessData, convResult, flowNode] = await Promise.all([
+      cachedBusiness
+        ? Promise.resolve(cachedBusiness)
+        : db.from('businesses')
+            .select(
+              'name, description, ai_enabled, ai_prompt, ai_auto_reply_mode, ai_model, plan,' +
+              'ai_operating_hours, ai_knowledge_base, ai_handoff_keywords,' +
+              'wa_phone_number_id, wa_access_token,' +
+              'ig_page_id, ig_access_token, fb_page_id, fb_page_token',
+            )
+            .eq('id', business_id)
+            .maybeSingle()
+            .then(r => r.data),
+      db.from('wa_conversations').select('needs_human').eq('id', conversation_id).maybeSingle(),
+      matchFlowNode(db, business_id, last_message_content, intent),
+    ]);
+
+    // deno-lint-ignore no-explicit-any
+    const business = businessData as any;
+    if (business && !cachedBusiness) cacheSet(businessCacheKey, business, BUSINESS_CACHE_TTL_MS);
 
     if (!business?.ai_enabled || business.ai_auto_reply_mode === 'disabled') {
       return new Response(JSON.stringify({ skipped: 'AI not enabled' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 2. Off-hours enforcement
+    // Off-hours enforcement
     if (business.ai_auto_reply_mode === 'off_hours') {
       if (!business.ai_operating_hours) {
         // No schedule configured — treat as always-open (safe default: do not respond)
@@ -327,13 +415,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Check needs_human
-    const { data: conv } = await db.from('wa_conversations').select('needs_human').eq('id', conversation_id).maybeSingle();
+    const conv = convResult.data;
     if (conv?.needs_human) {
       return new Response(JSON.stringify({ skipped: 'Awaiting human agent' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 4. Handoff keyword detection
+    // Handoff keyword detection
     const handoffKeywords = (business.ai_handoff_keywords as string[]) ?? [];
     if (detectsHandoff(last_message_content, handoffKeywords)) {
       await db.from('wa_conversations').update({ needs_human: true }).eq('id', conversation_id);
@@ -343,8 +430,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Flow node matching
-    const flowNode = await matchFlowNode(db, business_id, last_message_content, intent);
+    // Flow node match (already fetched in parallel above)
     if (flowNode) {
       let responseText = flowNode.response_template;
       // Resolve {{promociones}} placeholder with active promo KB items
@@ -438,10 +524,7 @@ NO inventes precios ni productos que no aparezcan en el menú.`;
       customerMemoryContext,
     ].filter(Boolean).join('');
 
-    const reply = await generateReply(
-      (business.ai_model as string) || DEFAULT_MODEL,
-      systemPrompt, history, last_message_content,
-    );
+    const reply = await generateReply(business, systemPrompt, history, last_message_content);
     if (!reply) {
       return new Response(JSON.stringify({ skipped: 'No reply generated' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
