@@ -44,6 +44,73 @@ function buildKnowledgeContext(items: Array<{ type: string; title: string; conte
   return lines.join('\n');
 }
 
+interface SocialPost {
+  caption?: string;
+  like_count?: number;
+  comments_count?: number;
+  timestamp?: string;
+  permalink?: string;
+}
+
+// Read-only — available on every plan. Uses whichever credentials the
+// business has connected (via the "Conectar Instagram/Facebook" OAuth flow
+// or the manual Pro-plan token fields); silently skips if neither is set,
+// so businesses that haven't connected yet still get a normal response.
+async function buildSocialContext(business: {
+  ig_page_id?: string | null; ig_access_token?: string | null;
+  fb_page_id?: string | null; fb_page_token?: string | null;
+}): Promise<string> {
+  const lines: string[] = [];
+
+  if (business.ig_page_id && business.ig_access_token) {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${business.ig_page_id}/media?fields=caption,like_count,comments_count,timestamp,permalink&limit=10&access_token=${encodeURIComponent(business.ig_access_token)}`,
+      );
+      if (res.ok) {
+        const { data } = await res.json() as { data: SocialPost[] };
+        if (data?.length) {
+          lines.push('\n=== PUBLICACIONES RECIENTES DE INSTAGRAM ===');
+          for (const p of data) {
+            const date = p.timestamp ? new Date(p.timestamp).toLocaleDateString('es-CO') : '?';
+            const caption = (p.caption ?? '(sin texto)').slice(0, 150);
+            lines.push(`- [${date}] "${caption}" — ${p.like_count ?? 0} likes, ${p.comments_count ?? 0} comentarios`);
+          }
+        }
+      } else {
+        console.warn('[sales-advisor] Instagram media fetch failed:', res.status);
+      }
+    } catch (e) {
+      console.warn('[sales-advisor] Instagram media fetch threw:', e);
+    }
+  }
+
+  if (business.fb_page_id && business.fb_page_token) {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${business.fb_page_id}/posts?fields=message,created_time,permalink_url&limit=10&access_token=${encodeURIComponent(business.fb_page_token)}`,
+      );
+      if (res.ok) {
+        const { data } = await res.json() as { data: Array<{ message?: string; created_time?: string }> };
+        if (data?.length) {
+          lines.push('\n=== PUBLICACIONES RECIENTES DE FACEBOOK ===');
+          for (const p of data) {
+            const date = p.created_time ? new Date(p.created_time).toLocaleDateString('es-CO') : '?';
+            const message = (p.message ?? '(sin texto)').slice(0, 150);
+            lines.push(`- [${date}] "${message}"`);
+          }
+        }
+      } else {
+        console.warn('[sales-advisor] Facebook posts fetch failed:', res.status);
+      }
+    } catch (e) {
+      console.warn('[sales-advisor] Facebook posts fetch threw:', e);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 async function buildMenuContext(db: ReturnType<typeof supabaseAdmin>, businessId: string): Promise<string> {
   const [catResult, prodResult] = await Promise.all([
     db.from('categories').select('id, name').eq('business_id', businessId).eq('is_active', true).order('position'),
@@ -270,7 +337,7 @@ Deno.serve(async (req) => {
   // Verify business belongs to this user
   const { data: business } = await db
     .from('businesses')
-    .select('id, name, description, delivery_zone, ai_knowledge_base, currency, business_type')
+    .select('id, name, description, delivery_zone, ai_knowledge_base, currency, business_type, ig_page_id, ig_access_token, fb_page_id, fb_page_token')
     .eq('id', business_id)
     .eq('owner_id', user.id)
     .maybeSingle();
@@ -286,7 +353,7 @@ Deno.serve(async (req) => {
   const isReservations = (business as any).business_type === 'reservations';
 
   // Load context in parallel (menu/services, metrics, prior sessions)
-  const [catalogContext, metricsContext, priorSessionsRaw] = await Promise.all([
+  const [catalogContext, metricsContext, priorSessionsRaw, socialContext] = await Promise.all([
     isReservations ? buildServicesContext(db, business_id) : buildMenuContext(db, business_id),
     isReservations ? buildBookingsMetrics(db, business_id) : buildBusinessMetrics(db, business_id),
     db.from('advisor_sessions')
@@ -295,6 +362,7 @@ Deno.serve(async (req) => {
       .neq('id', session_id ?? '00000000-0000-0000-0000-000000000000')
       .order('updated_at', { ascending: false })
       .limit(3),
+    buildSocialContext(business),
   ]);
   const menuContext = catalogContext; // alias for template string below
   const knowledgeContext = buildKnowledgeContext((business.ai_knowledge_base as Array<{ type: string; title: string; content: string }>) ?? []);
@@ -391,6 +459,7 @@ ${business.delivery_zone ? `Zona de entrega: ${business.delivery_zone}` : ''}
 ${menuContext}
 ${knowledgeContext}
 ${metricsContext}
+${socialContext}
 ${priorSessionsContext}`;
 
   // ── Build messages ─────────────────────────────────────────────────────────

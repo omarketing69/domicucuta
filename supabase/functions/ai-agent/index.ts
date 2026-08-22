@@ -404,6 +404,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ skipped: 'AI not enabled' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
+    // Instagram/Messenger DM auto-reply is a Pro-plan feature. The
+    // "Conectar Instagram/Facebook" OAuth flow (unlike the old manual
+    // Pro-gated token form) is available on every plan for read-only posts
+    // access, so ig_page_id/fb_page_id being set no longer implies Pro —
+    // enforce the plan check here instead.
+    if (channel !== 'whatsapp' && business.plan !== 'pro') {
+      return new Response(JSON.stringify({ skipped: 'Instagram/Messenger auto-reply requires Pro plan' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+
     // Off-hours enforcement
     if (business.ai_auto_reply_mode === 'off_hours') {
       if (!business.ai_operating_hours) {

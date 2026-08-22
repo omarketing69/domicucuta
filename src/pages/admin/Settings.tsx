@@ -55,6 +55,9 @@ export default function Settings() {
   const [fbSaved, setFbSaved] = useState(false);
   const [showFbToken, setShowFbToken] = useState(false);
 
+  // One-click Meta OAuth connect state
+  const [metaConnecting, setMetaConnecting] = useState(false);
+
   // Twilio section state
   const [twilioForm, setTwilioForm] = useState({
     twilio_account_sid: '',
@@ -122,6 +125,58 @@ export default function Settings() {
       if (pt) setProductionTimes(prev => ({ ...prev, ...pt }));
     }
   }, [business]);
+
+  // Handle the redirect back from meta-oauth-callback (?meta_connected=1 / ?meta_error=<reason>)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get('meta_connected');
+    const errorReason = params.get('meta_error');
+    if (!connected && !errorReason) return;
+
+    if (connected) {
+      toast({
+        title: 'Instagram y Facebook conectados',
+        description: 'El Director de Ventas ya puede ver tus publicaciones para darte recomendaciones.',
+      });
+      refetch();
+    } else if (errorReason) {
+      const messages: Record<string, string> = {
+        denied: 'Cancelaste la conexión con Meta.',
+        missing_params: 'Faltaron datos en la respuesta de Meta. Intenta de nuevo.',
+        invalid_state: 'La sesión de conexión expiró. Intenta de nuevo.',
+        not_configured: 'La conexión con Meta no está configurada todavía.',
+        token_exchange_failed: 'No se pudo validar el acceso con Meta. Intenta de nuevo.',
+        pages_fetch_failed: 'No se pudieron obtener tus Páginas de Facebook.',
+        no_pages_found: 'No encontramos ninguna Página de Facebook en tu cuenta.',
+        save_failed: 'No se pudieron guardar las credenciales. Intenta de nuevo.',
+        internal_error: 'Ocurrió un error inesperado. Intenta de nuevo.',
+      };
+      toast({
+        title: 'No se pudo conectar',
+        description: messages[errorReason] || 'Ocurrió un error al conectar con Meta.',
+        variant: 'destructive',
+      });
+    }
+    window.history.replaceState({}, '', window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const connectMeta = async () => {
+    setMetaConnecting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke<{ oauth_url: string }>('meta-oauth-start');
+      if (error || !data?.oauth_url) throw error || new Error('No se recibió la URL de conexión');
+      window.location.href = data.oauth_url;
+    } catch (err) {
+      console.error('[connectMeta]', err);
+      toast({
+        title: 'Error al conectar',
+        description: 'No se pudo iniciar la conexión con Meta. Intenta de nuevo.',
+        variant: 'destructive',
+      });
+      setMetaConnecting(false);
+    }
+  };
 
   // Generate QR code when slug changes
   useEffect(() => {
@@ -668,6 +723,33 @@ export default function Settings() {
         </div>
       </form>
 
+      {/* ── Conectar Instagram y Facebook (un clic, todos los planes) ── */}
+      <div className="card-elevated p-6 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-medium flex items-center gap-2">
+              <Link className="w-4 h-4 text-violet-500" />
+              Conectar Instagram y Facebook
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Conecta tu Página de Facebook e Instagram con un clic para que el Director de Ventas pueda ver tus publicaciones y darte recomendaciones. Disponible en todos los planes.
+            </p>
+          </div>
+          {(igForm.ig_page_id || fbForm.fb_page_id) && (
+            <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-700">Conectado ✓</span>
+          )}
+        </div>
+        <Button type="button" onClick={connectMeta} disabled={metaConnecting} className="w-full gap-2">
+          {metaConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+          {(igForm.ig_page_id || fbForm.fb_page_id) ? 'Reconectar Instagram/Facebook' : 'Conectar Instagram y Facebook'}
+        </Button>
+        {!isPro && (
+          <p className="text-xs text-muted-foreground">
+            Esto solo permite leer tus publicaciones. Para responder mensajes directos automáticamente necesitas el Plan Pro (secciones abajo).
+          </p>
+        )}
+      </div>
+
       {/* ── Instagram DM ── */}
       {isPro && (
         <form onSubmit={saveIg} className="space-y-4">
@@ -1006,62 +1088,6 @@ export default function Settings() {
           </Button>
         </div>
       </form>
-
-      {/* ── Google Calendar (Reservas mode only) ─────────────────────────── */}
-      {(business as any)?.business_type === 'reservations' && (
-        <div className={cn('card-elevated p-6 space-y-4', !isPro && 'opacity-70')}>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="font-medium flex items-center gap-2">
-                <CalendarDays className="w-4 h-4 text-blue-500" />
-                Google Calendar
-              </h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Sincroniza las reservas confirmadas con tu Google Calendar automáticamente.
-              </p>
-            </div>
-            {!isPro ? (
-              <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 border border-violet-200 dark:border-violet-800">Solo Plan Pro</span>
-            ) : (
-              <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-700">Plan Pro ✓</span>
-            )}
-          </div>
-          {!isPro ? (
-            <div className="rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 px-4 py-3 text-sm text-violet-800 dark:text-violet-300">
-              Actualiza al Plan Pro para activar la sincronización con Google Calendar en reservas confirmadas.
-            </div>
-          ) : (
-            <>
-              <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-4 py-3 space-y-1.5">
-                <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5" /> Integración OAuth — Próximamente
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-400">
-                  La conexión automática con Google Calendar estará disponible en la próxima versión. Cuando esté lista, podrás autorizar con un clic y cada reserva confirmada creará un evento en tu calendario con todos los detalles del cliente.
-                </p>
-              </div>
-              <div className="rounded-lg bg-muted/40 border border-border px-4 py-3 space-y-2">
-                <p className="text-xs font-semibold text-foreground">¿Qué incluirá cada evento?</p>
-                <ul className="space-y-1 text-xs text-muted-foreground">
-                  <li className="flex gap-2"><span>•</span>Nombre del cliente y teléfono WhatsApp</li>
-                  <li className="flex gap-2"><span>•</span>Servicio reservado y duración</li>
-                  <li className="flex gap-2"><span>•</span>Número de personas y notas adicionales</li>
-                  <li className="flex gap-2"><span>•</span>Recordatorio automático 24 h antes</li>
-                </ul>
-              </div>
-              <button
-                type="button"
-                disabled
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-muted/40 text-muted-foreground text-sm font-medium cursor-not-allowed opacity-60"
-              >
-                <CalendarDays className="w-4 h-4" />
-                Conectar Google Calendar
-                <span className="ml-auto text-xs bg-muted rounded-full px-2 py-0.5">Próximamente</span>
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {/* ── Tiempos de producción ─────────────────────────────────────────── */}
       <div className="border border-border rounded-xl p-4 space-y-4">
