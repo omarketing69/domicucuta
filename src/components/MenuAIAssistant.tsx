@@ -365,7 +365,7 @@ export default function MenuAIAssistant({ slug, aiEnabled, brandColor = '#f97316
 
       // For bookings, attempt RPC first; only attach bookingData to the message if save succeeded
       if (bookingData) {
-        const saved = await sendAIBooking(bookingData);
+        const { ok: saved, slotFull } = await sendAIBooking(bookingData);
         if (saved) {
           if (!finalText) finalText = `¡Listo! 🎉 Tu reserva de "${bookingData.servicio}" quedó registrada.`;
           upsertAssistantMessage(finalText, { bookingData });
@@ -375,7 +375,9 @@ export default function MenuAIAssistant({ slug, aiEnabled, brandColor = '#f97316
         }
         const dateOk = !!bookingData.fecha?.match(/^\d{4}-\d{2}-\d{2}$/);
         const timeOk = !!bookingData.hora?.match(/^\d{2}:\d{2}/);
-        const warning = (!dateOk || !timeOk)
+        const warning = slotFull
+          ? '\n\n⚠️ Ese horario ya no está disponible — elige otro horario para tu reserva.'
+          : (!dateOk || !timeOk)
           ? '\n\n⚠️ No pude guardar la reserva automáticamente — por favor confirma directamente por WhatsApp con el negocio.'
           : '\n\n⚠️ Hubo un problema al guardar tu reserva. Por favor contacta al negocio directamente por WhatsApp.';
         finalText = (finalText || 'Tu reserva está casi lista.') + warning;
@@ -563,18 +565,18 @@ export default function MenuAIAssistant({ slug, aiEnabled, brandColor = '#f97316
     return null;
   }, []);
 
-  const sendAIBooking = useCallback(async (bd: BookingData): Promise<boolean> => {
+  const sendAIBooking = useCallback(async (bd: BookingData): Promise<{ ok: boolean; slotFull?: boolean }> => {
     const bId = businessIdRef.current;
     if (!bId) {
       console.warn('[AI booking] businessId not available yet — booking NOT saved');
-      return false;
+      return { ok: false };
     }
     const bookingDate = normalizeDate(bd.fecha);
     const bookingTime = normalizeTime(bd.hora);
 
     if (!bookingDate || !bookingTime) {
       console.warn('[AI booking] Could not parse date/time from AI output:', bd.fecha, bd.hora);
-      return false;
+      return { ok: false };
     }
 
     const { data, error } = await supabase.rpc('create_booking' as any, {
@@ -591,10 +593,10 @@ export default function MenuAIAssistant({ slug, aiEnabled, brandColor = '#f97316
 
     if (error) {
       console.error('[AI booking] RPC failed:', error);
-      return false;
+      return { ok: false, slotFull: error.message?.includes('SLOT_FULL') };
     }
     console.info('[AI booking] saved via RPC → id:', data, '| business:', bId);
-    return true;
+    return { ok: true };
   }, [normalizeDate, normalizeTime]);
 
   const saveConversation = useCallback(async (msgs: Message[]) => {
