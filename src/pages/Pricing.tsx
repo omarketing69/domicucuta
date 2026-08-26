@@ -81,6 +81,11 @@ const PLAN_META: Record<string, {
   },
 };
 
+// Paid plans (starter/pro) aren't self-activated — there's no payment
+// gateway integrated yet, so upgrading routes the owner to WhatsApp to
+// arrange payment manually; only the free plan stays instant self-serve.
+const PLATFORM_CONTACT_WHATSAPP = '573154113761';
+
 const PLAN_ICONS: Record<string, typeof Sparkles> = {
   free: Sparkles,
   starter: Zap,
@@ -186,6 +191,16 @@ export default function Pricing() {
       return;
     }
 
+    // Paid plans require manual activation (no payment gateway yet) — send
+    // the owner to WhatsApp to arrange payment instead of activating for free.
+    if (planId !== 'free') {
+      const meta = PLAN_META[planId];
+      const planName = meta ? `${meta.techName} (${meta.resultName})` : `Plan ${planId}`;
+      const message = `Hola, quiero activar el ${planName} para mi negocio "${business.name}".`;
+      window.open(`https://wa.me/${PLATFORM_CONTACT_WHATSAPP}?text=${encodeURIComponent(message)}`, '_blank');
+      return;
+    }
+
     setLoading(planId);
     try {
       const now = new Date();
@@ -228,7 +243,7 @@ export default function Pricing() {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <ChefHat className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-sm tracking-tight">WhatsOrder</span>
+            <span className="font-semibold text-sm tracking-tight">WhatOrden</span>
           </Link>
           <div className="flex items-center gap-3">
             {user ? (
@@ -419,7 +434,7 @@ export default function Pricing() {
             Estás incorporando un nuevo miembro a tu equipo.
           </h3>
           <p className="text-muted-foreground leading-relaxed">
-            WhatsOrder combina un <strong>Menú Digital Inteligente</strong>, un{' '}
+            WhatOrden combina un <strong>Menú Digital Inteligente</strong>, un{' '}
             <strong>Agente IA que vende 24/7</strong>, un{' '}
             <strong>Director Comercial con IA</strong> que interpreta conversaciones y detecta
             oportunidades, y un <strong>Centro Inteligente de Pedidos</strong> que supervisa
