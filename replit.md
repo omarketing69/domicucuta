@@ -1,4 +1,4 @@
-# DomiCircusPop / MenuApp
+# WhatOrden
 
 A digital menu SaaS platform that lets food businesses create a public menu with a unique link, manage products/categories/orders, and receive orders via WhatsApp.
 

@@ -19,9 +19,9 @@ export default function SuperAdminLayout() {
       {/* Sidebar */}
       <aside className="w-56 flex-shrink-0 border-r border-border flex flex-col">
         <div className="p-4 border-b border-border flex items-center gap-2">
-          <img src={logo} alt="DomiCircusPop" className="w-8 h-8" />
+          <img src={logo} alt="WhatOrden" className="w-8 h-8" />
           <div>
-            <p className="text-xs font-semibold tracking-tight">DomiCircusPop</p>
+            <p className="text-xs font-semibold tracking-tight">WhatOrden</p>
             <div className="flex items-center gap-1 mt-0.5">
               <Shield className="w-3 h-3 text-destructive" />
               <span className="text-[10px] text-destructive font-medium">Super Admin</span>

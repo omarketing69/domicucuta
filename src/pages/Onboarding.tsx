@@ -86,7 +86,7 @@ export default function Onboarding() {
       <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
         <ChefHat className="w-5 h-5 text-primary-foreground" />
       </div>
-      <span className="text-xl font-semibold tracking-tight">MenuApp</span>
+      <span className="text-xl font-semibold tracking-tight">WhatOrden</span>
     </div>
   );
 
@@ -211,7 +211,7 @@ export default function Onboarding() {
               <Label>{businessType === 'products' ? 'URL del menú *' : 'URL de tu página *'}</Label>
               <div className="flex items-center gap-0">
                 <span className="px-3 py-2 text-sm bg-muted border border-border rounded-l-lg text-muted-foreground border-r-0">
-                  menuapp.com/b/
+                  whatorden.com/b/
                 </span>
                 <Input
                   className="rounded-l-none"

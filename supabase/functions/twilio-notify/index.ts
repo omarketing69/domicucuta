@@ -115,7 +115,7 @@ async function sendSendGridEmail(opts: {
     },
     body: JSON.stringify({
       personalizations: [{ to: [{ email: opts.to }] }],
-      from: { email: opts.from, name: 'DomiCircus' },
+      from: { email: opts.from, name: 'WhatOrden' },
       subject: opts.subject,
       content: [{ type: 'text/plain', value: opts.text }],
     }),
@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
       result = await sendTwilioVoice({ accountSid: sid, authToken: token, from: business.twilio_voice_number, to, message });
     } else if (channel === 'email') {
       if (!business.sendgrid_api_key || !business.sendgrid_from_email) throw new Error('Email credentials not configured');
-      const emailSubject = (body.subject as string | undefined) || 'Notificación de DomiCircus';
+      const emailSubject = (body.subject as string | undefined) || 'Notificación de WhatOrden';
       result = await sendSendGridEmail({
         apiKey: business.sendgrid_api_key,
         from: business.sendgrid_from_email,

@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
 
     return [
       'BEGIN:VEVENT',
-      `UID:${b.id}@domicircuspop`,
+      `UID:${b.id}@whatorden`,
       `DTSTAMP:${dtstamp}`,
       `DTSTART:${dtstart}`,
       `DTEND:${dtend}`,
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
   const ics = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//DomiCircusPop//Reservas//ES',
+    'PRODID:-//WhatOrden//Reservas//ES',
     'CALSCALE:GREGORIAN',
     `X-WR-CALNAME:${icsEscape(business.name + ' — Reservas')}`,
     ...events,

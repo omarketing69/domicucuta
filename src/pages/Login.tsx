@@ -41,8 +41,8 @@ export default function Login() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 justify-center mb-8">
-          <img src={logo} alt="DomiCircusPop" className="w-10 h-10" />
-          <span className="text-xl font-semibold tracking-tight">DomiCircusPop</span>
+          <img src={logo} alt="WhatOrden" className="w-10 h-10" />
+          <span className="text-xl font-semibold tracking-tight">WhatOrden</span>
         </div>
 
         <div className="card-elevated p-6">

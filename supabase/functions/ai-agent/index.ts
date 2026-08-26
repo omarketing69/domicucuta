@@ -220,7 +220,7 @@ function buildAttempts(business: { ai_model?: string | null; plan?: string | nul
         endpoint: OPENROUTER_ENDPOINT,
         apiKey: openRouterKey,
         model: OPENROUTER_MODEL,
-        extraHeaders: { 'HTTP-Referer': 'https://domicircuspop.replit.app', 'X-Title': 'DomiCircusPop AI Agent' },
+        extraHeaders: { 'HTTP-Referer': 'https://domicircuspop.replit.app', 'X-Title': 'WhatOrden AI Agent' },
         timeoutMs: 9_000,
       },
       groqAttempt(DEFAULT_MODEL, 6_000), // degrade to free Qwen if Kimi/OpenRouter fails

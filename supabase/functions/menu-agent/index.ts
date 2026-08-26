@@ -275,7 +275,7 @@ function buildAttempts(business: BusinessRow): ModelAttempt[] {
         endpoint: OPENROUTER_ENDPOINT,
         apiKey: openRouterKey,
         model: OPENROUTER_MODEL,
-        extraHeaders: { 'HTTP-Referer': 'https://domicircuspop.replit.app', 'X-Title': 'DomiCircusPop Menu AI' },
+        extraHeaders: { 'HTTP-Referer': 'https://domicircuspop.replit.app', 'X-Title': 'WhatOrden Menu AI' },
         timeoutMs: 7_000,
       },
       groqAttempt(DEFAULT_MODEL, 5_000), // degrade to free Qwen if Kimi/OpenRouter fails

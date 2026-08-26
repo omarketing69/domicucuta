@@ -109,8 +109,8 @@ export function AdminSidebar() {
       <Sidebar collapsible="icon">
         <SidebarHeader className="border-b border-sidebar-border p-4">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="DomiCircusPop" className="w-8 h-8 flex-shrink-0" />
-            {!collapsed && <span className="font-semibold text-sm tracking-tight">DomiCircusPop</span>}
+            <img src={logo} alt="WhatOrden" className="w-8 h-8 flex-shrink-0" />
+            {!collapsed && <span className="font-semibold text-sm tracking-tight">WhatOrden</span>}
           </div>
         </SidebarHeader>
 

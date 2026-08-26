@@ -204,7 +204,7 @@ async function classifyIntent(content: string): Promise<{ intent: Intent; scoreB
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://domicircuspop.replit.app',
-        'X-Title': 'DomiCircusPop Webhook',
+        'X-Title': 'WhatOrden Webhook',
       },
       body: JSON.stringify({
         model: 'openai/gpt-4o-mini',
