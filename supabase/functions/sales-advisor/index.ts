@@ -74,6 +74,78 @@ function buildPlanContext(business: {
   return lines.join('\n');
 }
 
+// Plan Pro only — organic reach/impressions/follower metrics from Meta's
+// Page/Instagram Insights API (read_insights scope, granted by the same
+// "Conectar Instagram/Facebook" OAuth flow). This is separate from paid Ads
+// performance (spend, CPM, ROAS), which needs the much more sensitive
+// ads_read permission and isn't built yet — never claim or infer ad-spend
+// data from this. Every call is wrapped and skips silently on failure, since
+// Meta's insights metric names/periods change over time and a business may
+// not have insufficient history yet.
+async function buildMetaInsightsContext(business: {
+  ig_page_id?: string | null; ig_access_token?: string | null;
+  fb_page_id?: string | null; fb_page_token?: string | null;
+}): Promise<string> {
+  const lines: string[] = [];
+
+  if (business.ig_page_id && business.ig_access_token) {
+    try {
+      const [profileRes, insightsRes] = await Promise.all([
+        fetch(`https://graph.facebook.com/v19.0/${business.ig_page_id}?fields=followers_count,media_count&access_token=${encodeURIComponent(business.ig_access_token)}`),
+        fetch(`https://graph.facebook.com/v19.0/${business.ig_page_id}/insights?metric=reach&period=day&metric_type=total_value&access_token=${encodeURIComponent(business.ig_access_token)}`),
+      ]);
+      const igLines: string[] = [];
+      if (profileRes.ok) {
+        const profile = await profileRes.json() as { followers_count?: number; media_count?: number };
+        if (profile.followers_count != null) igLines.push(`Seguidores: ${profile.followers_count}`);
+        if (profile.media_count != null) igLines.push(`Publicaciones totales: ${profile.media_count}`);
+      }
+      if (insightsRes.ok) {
+        const insights = await insightsRes.json() as { data?: Array<{ name?: string; total_value?: { value?: number } }> };
+        const reach = insights.data?.find(d => d.name === 'reach')?.total_value?.value;
+        if (reach != null) igLines.push(`Alcance (últimos días): ${reach} cuentas alcanzadas`);
+      }
+      if (igLines.length) {
+        lines.push('\n=== MÉTRICAS DE INSTAGRAM (Plan Pro) ===');
+        lines.push(...igLines.map(l => `- ${l}`));
+      }
+    } catch (e) {
+      console.warn('[sales-advisor] Instagram insights fetch threw:', e);
+    }
+  }
+
+  if (business.fb_page_id && business.fb_page_token) {
+    try {
+      const [pageRes, insightsRes] = await Promise.all([
+        fetch(`https://graph.facebook.com/v19.0/${business.fb_page_id}?fields=fan_count&access_token=${encodeURIComponent(business.fb_page_token)}`),
+        fetch(`https://graph.facebook.com/v19.0/${business.fb_page_id}/insights?metric=page_impressions,page_engaged_users&period=days_28&access_token=${encodeURIComponent(business.fb_page_token)}`),
+      ]);
+      const fbLines: string[] = [];
+      if (pageRes.ok) {
+        const page = await pageRes.json() as { fan_count?: number };
+        if (page.fan_count != null) fbLines.push(`Seguidores de la Página: ${page.fan_count}`);
+      }
+      if (insightsRes.ok) {
+        const insights = await insightsRes.json() as { data?: Array<{ name?: string; values?: Array<{ value?: number }> }> };
+        for (const metric of insights.data ?? []) {
+          const latest = metric.values?.[metric.values.length - 1]?.value;
+          if (latest == null) continue;
+          if (metric.name === 'page_impressions') fbLines.push(`Impresiones (últimos 28 días): ${latest}`);
+          if (metric.name === 'page_engaged_users') fbLines.push(`Personas que interactuaron (últimos 28 días): ${latest}`);
+        }
+      }
+      if (fbLines.length) {
+        lines.push('\n=== MÉTRICAS DE FACEBOOK (Plan Pro) ===');
+        lines.push(...fbLines.map(l => `- ${l}`));
+      }
+    } catch (e) {
+      console.warn('[sales-advisor] Facebook insights fetch threw:', e);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 interface SocialPost {
   caption?: string;
   like_count?: number;
@@ -391,9 +463,11 @@ Deno.serve(async (req) => {
   const q = question.trim().slice(0, MAX_Q_LEN);
 
   const isReservations = (business as any).business_type === 'reservations';
+  const isProPlan = business.plan === 'pro' &&
+    !(business.plan_expires_at && new Date(business.plan_expires_at as string) < new Date());
 
   // Load context in parallel (menu/services, metrics, prior sessions)
-  const [catalogContext, metricsContext, priorSessionsRaw, socialContext] = await Promise.all([
+  const [catalogContext, metricsContext, priorSessionsRaw, socialContext, metaInsightsContext] = await Promise.all([
     isReservations ? buildServicesContext(db, business_id) : buildMenuContext(db, business_id),
     isReservations ? buildBookingsMetrics(db, business_id) : buildBusinessMetrics(db, business_id),
     db.from('advisor_sessions')
@@ -403,6 +477,7 @@ Deno.serve(async (req) => {
       .order('updated_at', { ascending: false })
       .limit(3),
     buildSocialContext(business),
+    isProPlan ? buildMetaInsightsContext(business) : Promise.resolve(''),
   ]);
   const menuContext = catalogContext; // alias for template string below
   const knowledgeContext = buildKnowledgeContext((business.ai_knowledge_base as Array<{ type: string; title: string; content: string }>) ?? []);
@@ -546,6 +621,12 @@ PUBLICIDAD PAGA EN META — CUANDO EL DUEÑO PREGUNTE:
 - Dar tiempo antes de juzgar: cambiar la campaña constantemente reinicia el aprendizaje del sistema — dejarla correr unos días antes de sacar conclusiones.
 - Presupuesto inicial modesto para probar, sin apostar todo a una sola campaña sin haber validado que funciona.
 
+MÉTRICAS REALES DE INSTAGRAM/FACEBOOK (Plan Pro):
+- Cuando el negocio es Plan Pro y tiene Instagram/Facebook conectados, tienes en "MÉTRICAS DE INSTAGRAM" y "MÉTRICAS DE FACEBOOK" (abajo) datos orgánicos reales: seguidores, alcance, impresiones, personas que interactuaron. Úsalos para interpretar y no solo repetir el número — compáralos con las publicaciones recientes que ya tienes (qué post tuvo más alcance, si el alcance está creciendo o estancado) y saca una conclusión práctica.
+- Esto es alcance orgánico, no de anuncios pagados — no lo confundas ni lo mezcles con gasto publicitario, CPM, clics o conversiones (eso sigue sin tener datos reales, ver arriba).
+- Si el negocio es Plan Pro pero no ves estas métricas en el contexto, es porque aún no conectó Instagram/Facebook — dile que use el botón "Conectar Instagram y Facebook" en Configuración.
+- Si el negocio no es Plan Pro, no ofrezcas analizar métricas de alcance/impresiones — solo tienes los likes/comentarios de sus publicaciones recientes (eso sí es de cualquier plan), y puedes mencionar que el análisis de alcance/impresiones es parte del Plan Pro si viene al caso.
+
 CUÁNDO RECOMENDAR LA DIFUSIÓN MASIVA DE LA PLATAFORMA (Acciones → Difusión masiva):
 - Tienes en "PLAN Y FUNCIONES DE ENVÍO MASIVO" (abajo) el plan real del negocio y qué canales tiene disponibles — nunca inventes ni asumas, usa exactamente lo que dice ahí.
 - Recomiéndala solo cuando los datos reales lo justifiquen: hay clientes inactivos o sin compra, hay un producto/servicio top que conviene anunciar, o el dueño pregunta cómo recuperar clientes o vender más. No la menciones en cada respuesta ni la fuerces en conversaciones que no tienen que ver con esto.
@@ -568,6 +649,7 @@ ${menuContext}
 ${knowledgeContext}
 ${metricsContext}
 ${socialContext}
+${metaInsightsContext}
 ${planContext}
 ${priorSessionsContext}`;
 

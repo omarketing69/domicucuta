@@ -19,7 +19,7 @@ const corsHeaders = {
 };
 
 const STATE_TTL_SECONDS = 300;
-const OAUTH_SCOPES = 'pages_show_list,pages_read_engagement,instagram_basic';
+const OAUTH_SCOPES = 'pages_show_list,pages_read_engagement,instagram_basic,read_insights';
 
 function base64UrlEncode(buf: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
