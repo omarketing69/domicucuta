@@ -118,16 +118,26 @@ async function buildSocialContext(business: {
   if (business.fb_page_id && business.fb_page_token) {
     try {
       const res = await fetch(
-        `https://graph.facebook.com/v19.0/${business.fb_page_id}/posts?fields=message,created_time,permalink_url&limit=10&access_token=${encodeURIComponent(business.fb_page_token)}`,
+        `https://graph.facebook.com/v19.0/${business.fb_page_id}/posts?fields=message,created_time,permalink_url,reactions.summary(total_count),comments.summary(total_count),shares&limit=10&access_token=${encodeURIComponent(business.fb_page_token)}`,
       );
       if (res.ok) {
-        const { data } = await res.json() as { data: Array<{ message?: string; created_time?: string }> };
+        const { data } = await res.json() as {
+          data: Array<{
+            message?: string; created_time?: string;
+            reactions?: { summary?: { total_count?: number } };
+            comments?: { summary?: { total_count?: number } };
+            shares?: { count?: number };
+          }>
+        };
         if (data?.length) {
           lines.push('\n=== PUBLICACIONES RECIENTES DE FACEBOOK ===');
           for (const p of data) {
             const date = p.created_time ? new Date(p.created_time).toLocaleDateString('es-CO') : '?';
             const message = (p.message ?? '(sin texto)').slice(0, 150);
-            lines.push(`- [${date}] "${message}"`);
+            const reactions = p.reactions?.summary?.total_count ?? 0;
+            const comments = p.comments?.summary?.total_count ?? 0;
+            const shares = p.shares?.count ?? 0;
+            lines.push(`- [${date}] "${message}" — ${reactions} reacciones, ${comments} comentarios, ${shares} compartidos`);
           }
         }
       } else {
