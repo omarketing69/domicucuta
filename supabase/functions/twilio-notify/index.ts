@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
 
     const { data: business, error: bizErr } = await db
       .from('businesses')
-      .select('id, owner_id, twilio_account_sid, twilio_auth_token, twilio_whatsapp_number, twilio_sms_number, twilio_voice_number, sendgrid_api_key, sendgrid_from_email, enabled_channels')
+      .select('id, owner_id, plan, plan_expires_at, twilio_account_sid, twilio_auth_token, twilio_whatsapp_number, twilio_sms_number, twilio_voice_number, sendgrid_api_key, sendgrid_from_email, enabled_channels')
       .eq('id', business_id)
       .maybeSingle();
 
@@ -190,6 +190,14 @@ Deno.serve(async (req) => {
           status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+    }
+
+    const isPro = business.plan === 'pro' &&
+      !(business.plan_expires_at && new Date(business.plan_expires_at) < new Date());
+    if (!isPro) {
+      return new Response(JSON.stringify({ error: 'Twilio requiere el Plan Pro' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const enabledChannels: string[] = business.enabled_channels ?? [];
