@@ -1089,6 +1089,42 @@ export default function Settings() {
         </div>
       </form>
 
+      {/* ── Enlace de calendario (solo lectura, modo Reservas) ── */}
+      {(business as any)?.business_type === 'reservations' && business?.id && (
+        <div className="card-elevated p-6 space-y-4">
+          <div>
+            <h2 className="font-medium flex items-center gap-2"><CalendarDays className="w-4 h-4 text-blue-500" />Enlace de calendario</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pega este enlace en Google Calendar (Otros calendarios → Desde URL) para ver tus reservas confirmadas desde tu celular. No requiere ninguna configuración adicional.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">URL del calendario (.ics)</Label>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={`https://khhxcruhhhzuuykfeivd.supabase.co/functions/v1/business-calendar-ics?business_id=${business.id}`}
+                className="font-mono text-xs bg-muted/40"
+                data-testid="input-calendar-ics-url"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-shrink-0 gap-1.5"
+                onClick={() => {
+                  navigator.clipboard.writeText(`https://khhxcruhhhzuuykfeivd.supabase.co/functions/v1/business-calendar-ics?business_id=${business.id}`);
+                  toast({ title: 'URL copiada', description: 'Pégala en Google Calendar → Otros calendarios → Desde URL.' });
+                }}
+                data-testid="button-copy-calendar-ics-url"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copiar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Tiempos de producción ─────────────────────────────────────────── */}
       <div className="border border-border rounded-xl p-4 space-y-4">
         <div>
