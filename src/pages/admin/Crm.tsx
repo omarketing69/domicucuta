@@ -2605,6 +2605,12 @@ function AccionesView({ businessId }: { businessId: string }) {
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <p className="text-sm font-medium">Nueva campaña</p>
 
+          {!isPro ? (
+            <div className="rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 px-4 py-3 text-sm text-violet-800 dark:text-violet-300">
+              La difusión masiva es una función del Plan Pro. Actualiza tu plan para enviar campañas a todos tus contactos de una vez, por WhatsApp (tu número) o por Twilio (SMS y WhatsApp adicional).
+            </div>
+          ) : (
+          <>
           <div className="space-y-1.5">
             <Label className="text-sm">Canal de envío</Label>
             <Select value={channel} onValueChange={v => setChannel(v as BulkChannel)}>
@@ -2613,19 +2619,10 @@ function AccionesView({ businessId }: { businessId: string }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="meta_whatsapp">{BULK_CHANNEL_LABELS.meta_whatsapp}</SelectItem>
-                <SelectItem value="twilio_whatsapp" disabled={!isPro}>
-                  {BULK_CHANNEL_LABELS.twilio_whatsapp}{!isPro ? ' — Plan Pro' : ''}
-                </SelectItem>
-                <SelectItem value="twilio_sms" disabled={!isPro}>
-                  {BULK_CHANNEL_LABELS.twilio_sms}{!isPro ? ' — Plan Pro' : ''}
-                </SelectItem>
+                <SelectItem value="twilio_whatsapp">{BULK_CHANNEL_LABELS.twilio_whatsapp}</SelectItem>
+                <SelectItem value="twilio_sms">{BULK_CHANNEL_LABELS.twilio_sms}</SelectItem>
               </SelectContent>
             </Select>
-            {!isPro && (
-              <p className="text-xs text-muted-foreground">
-                Con el Plan Pro también puedes enviar por SMS y por WhatsApp usando Twilio — útil para llegar a clientes cuyo número no tiene WhatsApp o cuando quieres separar el tráfico masivo de tu número propio.
-              </p>
-            )}
           </div>
 
           <div className="space-y-1.5">
@@ -2729,6 +2726,8 @@ function AccionesView({ businessId }: { businessId: string }) {
                   ? `Programar para ${recipientCount} contacto${recipientCount !== 1 ? 's' : ''}`
                   : `Enviar a ${recipientCount} contacto${recipientCount !== 1 ? 's' : ''}`)}
           </Button>
+          </>
+          )}
         </div>
 
         {/* History */}

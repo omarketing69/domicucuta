@@ -62,15 +62,20 @@ function buildPlanContext(business: {
   const lines = ['\n=== PLAN Y FUNCIONES DE ENVÍO MASIVO ==='];
   lines.push(`Plan actual del negocio: ${planLabel}`);
   lines.push(
-    waConnected
-      ? 'Difusión masiva por WhatsApp (número propio, en Acciones → Difusión masiva): disponible ahora mismo, cualquier plan.'
-      : 'Difusión masiva por WhatsApp (número propio): disponible en cualquier plan, pero este negocio aún no conectó su número de WhatsApp en Configuración.',
+    'La difusión masiva (Acciones → Difusión masiva) es una función exclusiva del Plan Pro, sea por WhatsApp propio, WhatsApp Twilio o SMS Twilio — mensajes 1 a 1 en el chat normal siguen disponibles en cualquier plan.',
   );
-  lines.push(
-    isPro
-      ? `Difusión masiva por Twilio (SMS y WhatsApp adicional, en Acciones → Difusión masiva): ${twilioConfigured ? 'disponible, ya tiene credenciales de Twilio configuradas' : 'disponible en este plan, pero todavía debe configurar sus credenciales de Twilio en Configuración'}.`
-      : 'Difusión masiva por Twilio (SMS y WhatsApp adicional, útil para llegar a clientes sin WhatsApp o separar el tráfico masivo de su número propio): requiere el Plan Pro — este negocio no lo tiene.',
-  );
+  if (isPro) {
+    lines.push(
+      waConnected
+        ? 'Difusión masiva por WhatsApp (número propio): disponible, ya conectó su número de WhatsApp.'
+        : 'Difusión masiva por WhatsApp (número propio): disponible en este plan, pero este negocio aún no conectó su número de WhatsApp en Configuración.',
+    );
+    lines.push(
+      `Difusión masiva por Twilio (SMS y WhatsApp adicional): ${twilioConfigured ? 'disponible, ya tiene credenciales de Twilio configuradas' : 'disponible en este plan, pero todavía debe configurar sus credenciales de Twilio en Configuración'}.`,
+    );
+  } else {
+    lines.push('Este negocio no tiene Plan Pro, así que ningún canal de difusión masiva está disponible todavía.');
+  }
   return lines.join('\n');
 }
 
@@ -630,8 +635,8 @@ MÉTRICAS REALES DE INSTAGRAM/FACEBOOK (Plan Pro):
 CUÁNDO RECOMENDAR LA DIFUSIÓN MASIVA DE LA PLATAFORMA (Acciones → Difusión masiva):
 - Tienes en "PLAN Y FUNCIONES DE ENVÍO MASIVO" (abajo) el plan real del negocio y qué canales tiene disponibles — nunca inventes ni asumas, usa exactamente lo que dice ahí.
 - Recomiéndala solo cuando los datos reales lo justifiquen: hay clientes inactivos o sin compra, hay un producto/servicio top que conviene anunciar, o el dueño pregunta cómo recuperar clientes o vender más. No la menciones en cada respuesta ni la fuerces en conversaciones que no tienen que ver con esto.
-- Si el negocio está en plan Gratis o Starter y ya usa bien su difusión de WhatsApp propio (o el volumen de clientes es alto), puedes sugerir el Plan Pro para desbloquear Twilio (SMS y WhatsApp adicional) — explica el beneficio concreto según sus datos (ej. "tienes muchos clientes sin WhatsApp guardado, con Twilio también les llega por SMS"), nunca como venta genérica.
-- Si aún no ha conectado WhatsApp o Twilio (según el contexto de plan), dile exactamente qué le falta configurar, no solo que "lo active".
+- Si el negocio está en plan Gratis o Starter, ningún canal de difusión masiva está disponible (es exclusivo Plan Pro) — cuando la señal de datos justifique una campaña masiva, sugiere el Plan Pro directamente, explicando el beneficio concreto según sus datos (ej. "tienes muchos clientes inactivos, con el Plan Pro puedes mandarles una campaña a todos de una vez, por WhatsApp o por SMS con Twilio"), nunca como venta genérica.
+- Si ya es Plan Pro pero aún no ha conectado WhatsApp o Twilio (según el contexto de plan), dile exactamente qué le falta configurar, no solo que "lo active".
 
 HERRAMIENTA EXTERNA — PASS2ONE (www.pass2one.replit.app):
 Es una plataforma aparte (del mismo dueño de este negocio) para crear promociones canjeables con código QR: bonos de descuento, membresías, cortesías, entradas a eventos. El cliente recibe el código QR en su app web, y el negocio lo valida escaneándolo desde su propia app — evita que se comparta o reutilice un mismo cupón. No está integrada con WhatOrden, el dueño debe crear cada promoción manualmente entrando a pass2one.replit.app.

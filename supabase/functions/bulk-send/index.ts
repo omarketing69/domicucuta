@@ -10,7 +10,9 @@
  *
  * POST body (send action):
  *   { business_id, name, message, filter: { type, value? }, channel? }
- *   channel: 'meta_whatsapp' (default, free) | 'twilio_whatsapp' | 'twilio_sms' (Pro only)
+ *   channel: 'meta_whatsapp' (default) | 'twilio_whatsapp' | 'twilio_sms'
+ *   Bulk sending (any channel) is a Plan Pro feature — 1:1 chat messages
+ *   stay free/Starter, but broadcasting to a contact list does not.
  *
  * POST body (process_scheduled action — service-role only):
  *   (no body required)
@@ -30,7 +32,6 @@ const corsHeaders = {
 
 type FilterType = 'all' | 'status' | 'tags';
 type Channel = 'meta_whatsapp' | 'twilio_whatsapp' | 'twilio_sms';
-const TWILIO_CHANNELS: Channel[] = ['twilio_whatsapp', 'twilio_sms'];
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -223,8 +224,8 @@ function resolveCredentials(
     twilio_whatsapp_number?: string | null; twilio_sms_number?: string | null;
   },
 ): { creds: SendCredentials | null; error: string | null } {
-  if (TWILIO_CHANNELS.includes(channel) && !isProPlan(business)) {
-    return { creds: null, error: 'El envío masivo por Twilio requiere el Plan Pro.' };
+  if (!isProPlan(business)) {
+    return { creds: null, error: 'El envío masivo (Difusión masiva) requiere el Plan Pro.' };
   }
 
   if (channel === 'meta_whatsapp') {
