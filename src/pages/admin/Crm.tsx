@@ -37,6 +37,7 @@ import {
   sendMetaMessage, subscribeToConversations, subscribeToMessages,
 } from '@/lib/whatsappCrm';
 import { hasCrmAccess } from '@/lib/sso';
+import { getEffectivePlan } from '@/lib/planUtils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -2461,13 +2462,24 @@ function AgentHandoffTab({ businessId }: { businessId: string }) {
 
 // ── Acciones / Difusión masiva ────────────────────────────────────────────────
 
+type BulkChannel = 'meta_whatsapp' | 'twilio_whatsapp' | 'twilio_sms';
+
+const BULK_CHANNEL_LABELS: Record<BulkChannel, string> = {
+  meta_whatsapp:   'WhatsApp (tu número)',
+  twilio_whatsapp: 'WhatsApp vía Twilio',
+  twilio_sms:      'SMS vía Twilio',
+};
+
 function AccionesView({ businessId }: { businessId: string }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { business } = useBusiness();
+  const isPro = getEffectivePlan(business ?? undefined) === 'pro';
   const [campaignName, setCampaignName] = useState('');
   const [message, setMessage] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'status' | 'tags'>('all');
   const [filterValue, setFilterValue] = useState('');
+  const [channel, setChannel] = useState<BulkChannel>('meta_whatsapp');
   const [sending, setSending] = useState(false);
 
   // Preview recipient count
@@ -2529,6 +2541,7 @@ function AccionesView({ businessId }: { businessId: string }) {
           message:      message.trim(),
           filter_type:  filterType,
           filter_value: filterValue.trim() || null,
+          channel,
           status:       'pending',
           total_count:  recipientCount,
           scheduled_at: new Date(scheduledAt).toISOString(),
@@ -2544,6 +2557,7 @@ function AccionesView({ businessId }: { businessId: string }) {
             name:        campaignName.trim(),
             message:     message.trim(),
             filter:      { type: filterType, value: filterValue.trim() || undefined },
+            channel,
           },
         });
         if (error) throw error;
@@ -2590,6 +2604,29 @@ function AccionesView({ businessId }: { businessId: string }) {
         {/* Composer */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <p className="text-sm font-medium">Nueva campaña</p>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm">Canal de envío</Label>
+            <Select value={channel} onValueChange={v => setChannel(v as BulkChannel)}>
+              <SelectTrigger data-testid="select-bulk-channel" className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="meta_whatsapp">{BULK_CHANNEL_LABELS.meta_whatsapp}</SelectItem>
+                <SelectItem value="twilio_whatsapp" disabled={!isPro}>
+                  {BULK_CHANNEL_LABELS.twilio_whatsapp}{!isPro ? ' — Plan Pro' : ''}
+                </SelectItem>
+                <SelectItem value="twilio_sms" disabled={!isPro}>
+                  {BULK_CHANNEL_LABELS.twilio_sms}{!isPro ? ' — Plan Pro' : ''}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {!isPro && (
+              <p className="text-xs text-muted-foreground">
+                Con el Plan Pro también puedes enviar por SMS y por WhatsApp usando Twilio — útil para llegar a clientes cuyo número no tiene WhatsApp o cuando quieres separar el tráfico masivo de tu número propio.
+              </p>
+            )}
+          </div>
 
           <div className="space-y-1.5">
             <Label className="text-sm">Nombre de la campaña</Label>
@@ -2722,6 +2759,7 @@ function AccionesView({ businessId }: { businessId: string }) {
                       <p className="text-xs text-muted-foreground">
                         {new Date(c.created_at as string).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         {' · '}{c.total_count as number} contactos
+                        {' · '}{BULK_CHANNEL_LABELS[(c.channel as BulkChannel) ?? 'meta_whatsapp']}
                       </p>
                     </div>
                     <div className="flex items-center gap-4 text-xs flex-shrink-0">

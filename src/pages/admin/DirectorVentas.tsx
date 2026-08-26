@@ -339,6 +339,8 @@ export default function DirectorVentas() {
               <span>✅ Clientes VIP y clientes inactivos</span>
               <span>✅ Ingresos estimados y ticket promedio</span>
               <span>✅ Historial de conversaciones anteriores contigo</span>
+              <span>✅ Publicaciones recientes de Instagram/Facebook</span>
+              <span>✅ Tu plan y qué canales de difusión masiva puedes usar</span>
             </div>
             <p className="text-[10px] text-muted-foreground mt-2">
               Para actualizar la base de conocimiento ve a{' '}

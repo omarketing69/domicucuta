@@ -44,6 +44,36 @@ function buildKnowledgeContext(items: Array<{ type: string; title: string; conte
   return lines.join('\n');
 }
 
+// Tells the agent what plan the business is on and which broadcast channels
+// are actually usable, so it can recommend the right next step (connect
+// WhatsApp, configure Twilio, or upgrade) instead of generic advice — and
+// never claims a channel is available when it isn't.
+function buildPlanContext(business: {
+  plan?: string | null; plan_expires_at?: string | null;
+  wa_phone_number_id?: string | null; wa_access_token?: string | null;
+  twilio_account_sid?: string | null; twilio_whatsapp_number?: string | null; twilio_sms_number?: string | null;
+}): string {
+  const isPro = business.plan === 'pro' &&
+    !(business.plan_expires_at && new Date(business.plan_expires_at) < new Date());
+  const planLabel = isPro ? 'Pro' : (business.plan === 'starter' ? 'Starter' : 'Gratis');
+  const waConnected = !!(business.wa_phone_number_id && business.wa_access_token);
+  const twilioConfigured = !!(business.twilio_account_sid && (business.twilio_whatsapp_number || business.twilio_sms_number));
+
+  const lines = ['\n=== PLAN Y FUNCIONES DE ENVÍO MASIVO ==='];
+  lines.push(`Plan actual del negocio: ${planLabel}`);
+  lines.push(
+    waConnected
+      ? 'Difusión masiva por WhatsApp (número propio, en Acciones → Difusión masiva): disponible ahora mismo, cualquier plan.'
+      : 'Difusión masiva por WhatsApp (número propio): disponible en cualquier plan, pero este negocio aún no conectó su número de WhatsApp en Configuración.',
+  );
+  lines.push(
+    isPro
+      ? `Difusión masiva por Twilio (SMS y WhatsApp adicional, en Acciones → Difusión masiva): ${twilioConfigured ? 'disponible, ya tiene credenciales de Twilio configuradas' : 'disponible en este plan, pero todavía debe configurar sus credenciales de Twilio en Configuración'}.`
+      : 'Difusión masiva por Twilio (SMS y WhatsApp adicional, útil para llegar a clientes sin WhatsApp o separar el tráfico masivo de su número propio): requiere el Plan Pro — este negocio no lo tiene.',
+  );
+  return lines.join('\n');
+}
+
 interface SocialPost {
   caption?: string;
   like_count?: number;
@@ -337,7 +367,7 @@ Deno.serve(async (req) => {
   // Verify business belongs to this user
   const { data: business } = await db
     .from('businesses')
-    .select('id, name, description, delivery_zone, ai_knowledge_base, currency, business_type, ig_page_id, ig_access_token, fb_page_id, fb_page_token')
+    .select('id, name, description, delivery_zone, ai_knowledge_base, currency, business_type, ig_page_id, ig_access_token, fb_page_id, fb_page_token, plan, plan_expires_at, wa_phone_number_id, wa_access_token, twilio_account_sid, twilio_whatsapp_number, twilio_sms_number')
     .eq('id', business_id)
     .eq('owner_id', user.id)
     .maybeSingle();
@@ -366,6 +396,7 @@ Deno.serve(async (req) => {
   ]);
   const menuContext = catalogContext; // alias for template string below
   const knowledgeContext = buildKnowledgeContext((business.ai_knowledge_base as Array<{ type: string; title: string; content: string }>) ?? []);
+  const planContext = buildPlanContext(business);
 
   // Build lightweight prior-session context
   let priorSessionsContext = '';
@@ -452,6 +483,12 @@ FIDELIZACIÓN SIN INVERSIÓN:
 - "Ya extrañábamos tu pedido" — mensaje a clientes que no compran en 2 semanas
 - Tarjeta digital de puntos: "cada 10 pedidos, el siguiente con 20% de descuento"
 
+CUÁNDO RECOMENDAR LA DIFUSIÓN MASIVA DE LA PLATAFORMA (Acciones → Difusión masiva):
+- Tienes en "PLAN Y FUNCIONES DE ENVÍO MASIVO" (abajo) el plan real del negocio y qué canales tiene disponibles — nunca inventes ni asumas, usa exactamente lo que dice ahí.
+- Recomiéndala solo cuando los datos reales lo justifiquen: hay clientes inactivos o sin compra, hay un producto/servicio top que conviene anunciar, o el dueño pregunta cómo recuperar clientes o vender más. No la menciones en cada respuesta ni la fuerces en conversaciones que no tienen que ver con esto.
+- Si el negocio está en plan Gratis o Starter y ya usa bien su difusión de WhatsApp propio (o el volumen de clientes es alto), puedes sugerir el Plan Pro para desbloquear Twilio (SMS y WhatsApp adicional) — explica el beneficio concreto según sus datos (ej. "tienes muchos clientes sin WhatsApp guardado, con Twilio también les llega por SMS"), nunca como venta genérica.
+- Si aún no ha conectado WhatsApp o Twilio (según el contexto de plan), dile exactamente qué le falta configurar, no solo que "lo active".
+
 DATOS DEL NEGOCIO:
 Nombre: ${business.name}
 ${business.description ? `Descripción: ${business.description}` : ''}
@@ -460,6 +497,7 @@ ${menuContext}
 ${knowledgeContext}
 ${metricsContext}
 ${socialContext}
+${planContext}
 ${priorSessionsContext}`;
 
   // ── Build messages ─────────────────────────────────────────────────────────
